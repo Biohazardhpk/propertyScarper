@@ -54,6 +54,21 @@ export class SQLiteStore {
     this.db.prepare('INSERT INTO provider_runs(search_id,provider,status,listing_count,duration_ms,error) VALUES (?,?,?,?,?,?)').run(searchId, provider, status, count, duration, error);
   }
 
+  snapshotTable(definitionName) { return `saved_search_${createHash('sha256').update(definitionName).digest('hex').slice(0, 16)}`; }
+
+  saveSnapshot(definitionName, result) {
+    const table = this.snapshotTable(definitionName);
+    this.db.exec(`CREATE TABLE IF NOT EXISTS ${table}(id INTEGER PRIMARY KEY, completed_at TEXT NOT NULL, result_json TEXT NOT NULL)`);
+    this.db.prepare(`INSERT INTO ${table}(completed_at,result_json) VALUES (?,?)`).run(new Date().toISOString(), JSON.stringify(result));
+  }
+
+  loadSnapshot(definitionName) {
+    const table = this.snapshotTable(definitionName);
+    if (!this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table)) return undefined;
+    const row = this.db.prepare(`SELECT result_json FROM ${table} ORDER BY id DESC LIMIT 1`).get();
+    return row ? JSON.parse(row.result_json) : undefined;
+  }
+
   persistResults(searchId, properties, options = {}) {
     const now = new Date().toISOString();
     const expected = new Set(options.expectedProviders ?? ['rea', 'domain']);

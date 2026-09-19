@@ -27,28 +27,43 @@ The token is read locally and `.env` is ignored by Git. Domain searches run a th
 ## Search
 
 ```bash
-property-search search examples/north-brisbane-under-800k.yaml
+property-search search examples/north-brisbane-under_800k.yaml
 ```
 
 Both providers run by default. To run one provider:
 
 ```bash
-property-search search examples/north-brisbane-under-800k.yaml --provider rea
-property-search search examples/north-brisbane-under-800k.yaml --provider domain
+property-search search examples/north-brisbane-under_800k.yaml --provider rea
+property-search search examples/north-brisbane-under_800k.yaml --provider domain
 ```
 
 For JSON output:
 
 ```bash
-property-search search examples/north-brisbane-under-800k.yaml --json
+property-search search examples/north-brisbane-under_800k.yaml --json
 ```
 
 Save REA page HTML, screenshots and captured JSON responses for diagnosis:
 
 ```bash
-property-search search examples/north-brisbane-under-800k.yaml --provider rea --debug
+property-search search examples/north-brisbane-under_800k.yaml --provider rea --debug
 ```
 
+## Local web UI
+
+Run the lightweight local UI with a criteria file (the example is the default):
+
+```bash
+npm run ui -- examples/north-brisbane-under_800k.yaml
+```
+
+Then open `http://localhost:3000`. The form loads that YAML definition, saves form edits back to the same file, and runs the existing REA and Domain search pipeline. Use the saved-definition menu to browse YAML files in the same folder or create a new one. Each definition has its own SQLite snapshot table, so switching definitions restores its most recently saved search results. The UI supports every documented YAML criterion, including the expanded property-type aliases. Enable **Save REA diagnostics** before a run to save REA page HTML, screenshots and captured JSON responses under `.debug/`. Search errors appear in the page; provider-specific errors still allow results from the other provider.
+
+## Railway deployment
+
+The included `Dockerfile` is ready for Railway and installs Google Chrome for the REA provider. Create a Railway service from this repository, attach a persistent volume at `/data`, and set `APIFY_TOKEN` as a Railway variable. Railway uses `railway.toml` to build the Docker image and check `/healthz` before routing traffic.
+
+The volume keeps the SQLite database, persistent Chrome profile, and YAML definitions across deployments. On first start, the application copies the bundled YAML examples into `/data/definitions`; subsequent UI-created definitions and searches stay there.
 If one provider fails, results from the other provider are still returned with a provider warning.
 
 ## Criteria

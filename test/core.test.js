@@ -13,6 +13,7 @@ import { domainSearchUrl } from '../src/providers/domain/search.js';
 import { ApifyClient, DomainProvider } from '../src/providers/domain/provider.js';
 import { SQLiteStore } from '../src/persistence/database.js';
 import { SearchService } from '../src/core/search.js';
+import { criteriaToForm, criteriaToYaml, formToCriteria } from '../src/web/criteria-yaml.js';
 
 const fixture = (path) => readFile(`test/fixtures/${path}`, 'utf8');
 const loadListings = async () => {
@@ -55,6 +56,12 @@ test('parses and ranks the soft land preference without filtering smaller lots',
   assert.deepEqual(properties.map((property) => property.landAreaM2), [600, 500]);
   assert.equal(properties[0].score, 20);
   assert.equal(properties[1].score, 0);
+});
+
+test('web form criteria round-trip through the existing YAML parser', () => {
+  const form = { locations: 'Narangba QLD 4504\nPetrie QLD 4502', transactionType: 'buy', minPrice: '500000', maxPrice: '900000', propertyTypes: 'house\nunit', minBedrooms: '3', minBathrooms: '2', minCarspaces: '1', minLandAreaM2: '500', maxLandAreaM2: '1200', preferredMinLandAreaM2: '650', establishedOnly: true, includeSurroundingSuburbs: true, keywords: 'shed\nside access', excludeKeywords: 'retirement', strictKeywordMatch: true, excludeUnderContract: true, sort: 'newest' };
+  const criteria = parseCriteriaYaml(criteriaToYaml(formToCriteria(form)));
+  assert.deepEqual(criteriaToForm(criteria), { ...form, minPrice: 500000, maxPrice: 900000, minBedrooms: 3, minBathrooms: 2, minCarspaces: 1, minLandAreaM2: 500, maxLandAreaM2: 1200, preferredMinLandAreaM2: 650 });
 });
 
 test('builds REA and Domain public search URLs from common criteria', () => {
@@ -198,6 +205,17 @@ test('SQLite migrates an existing database without losing rows', () => {
   assert.ok(store.db.prepare('PRAGMA table_info(searches)').all().some((column) => column.name === 'criteria_hash'));
   assert.ok(store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='listing_history'").get());
   assert.equal(store.db.prepare('SELECT COUNT(*) AS count FROM listings').get().count, 1);
+  store.close();
+});
+
+test('SQLite keeps latest UI results in a separate table for each YAML definition', () => {
+  const path = `/tmp/property-search-saved-${crypto.randomUUID()}.sqlite`;
+  const store = new SQLiteStore(path);
+  store.saveSnapshot('north.yaml', { properties: [{ propertyId: 'north' }] });
+  store.saveSnapshot('south.yaml', { properties: [{ propertyId: 'south' }] });
+  assert.deepEqual(store.loadSnapshot('north.yaml'), { properties: [{ propertyId: 'north' }] });
+  assert.deepEqual(store.loadSnapshot('south.yaml'), { properties: [{ propertyId: 'south' }] });
+  assert.notEqual(store.snapshotTable('north.yaml'), store.snapshotTable('south.yaml'));
   store.close();
 });
 

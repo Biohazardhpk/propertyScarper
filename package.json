@@ -6,9 +6,11 @@
   "bin": { "property-search": "./bin/property-search.js" },
   "scripts": {
     "start": "node bin/property-search.js",
+    "ui": "node bin/property-search-ui.js",
+    "start:railway": "node bin/railway-start.js",
     "test": "node --test test/**/*.test.js",
     "test:domain": "DOMAIN_INTEGRATION=1 node --test test/domain.integration.test.js",
-    "check": "node --check bin/property-search.js && node --check src/core/search.js"
+    "check": "node --check bin/property-search.js && node --check bin/property-search-ui.js && node --check bin/railway-start.js && node --check src/core/search.js && node --check src/web/criteria-yaml.js"
   },
   "dependencies": { "patchright": "^1.55.2" },
   "engines": { "node": ">=22.5" }

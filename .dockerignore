@@ -1,0 +1,9 @@
+.git
+node_modules
+data
+.debug
+.property-search-profile
+coverage
+.env
+*.sqlite
+*.db

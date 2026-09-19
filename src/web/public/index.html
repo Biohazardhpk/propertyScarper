@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en-AU">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Property Search</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+  <main class="workspace">
+    <aside class="sidebar">
+      <header><p class="eyebrow">LOCAL PROPERTY SEARCH</p><h1>Search definition</h1><p>Change the criteria and save the YAML when you are ready.</p></header>
+      <div class="definition-picker"><label for="definition">Saved YAML definitions</label><select id="definition"></select><button type="button" id="new-definition">New YAML</button></div>
+      <p id="message" role="status"></p>
+      <form id="criteria-form">
+        <div class="grid">
+          <label>Locations <span>one per line</span><textarea name="locations" required></textarea></label>
+          <label>Transaction<select name="transactionType"><option value="buy">Buy</option><option value="rent">Rent</option><option value="sold">Sold</option></select></label>
+          <label>Sort<select name="sort"><option value="newest">Newest</option></select><span>Provider order is used when omitted.</span></label>
+          <label>Minimum price<input name="minPrice" type="number" min="0"></label><label>Maximum price<input name="maxPrice" type="number" min="0"></label>
+          <label>Property types <span>one per line: house, apartment, townhouse, villa, land, acreage, semi detached, retirement, block of units, studio, duplex, terrace (aliases supported)</span><textarea name="propertyTypes"></textarea></label>
+          <label>Min bedrooms<input name="minBedrooms" type="number" min="0"></label><label>Min bathrooms<input name="minBathrooms" type="number" min="0"></label><label>Min car spaces<input name="minCarspaces" type="number" min="0"></label><label>Min land (m²)<span>hard filter</span><input name="minLandAreaM2" type="number" min="0"></label><label>Max land (m²)<input name="maxLandAreaM2" type="number" min="0"></label><label>Preferred land (m²)<span>ranking only; keeps smaller lots</span><input name="preferredMinLandAreaM2" type="number" min="0"></label>
+          <label>Preferred keywords <span>one per line</span><textarea name="keywords"></textarea></label><label>Exclude keywords <span>one per line</span><textarea name="excludeKeywords"></textarea></label>
+        </div>
+        <div class="checks"><label><input name="includeSurroundingSuburbs" type="checkbox"> Include surrounding suburbs</label><label><input name="establishedOnly" type="checkbox"> Established only</label><label><input name="strictKeywordMatch" type="checkbox"> Require a keyword match</label><label><input name="excludeUnderContract" type="checkbox"> Exclude under contract</label><label><input id="debug" type="checkbox"> Save REA diagnostics</label></div>
+        <button type="button" id="save">Save YAML</button>
+      </form>
+    </aside>
+    <section class="content">
+      <header class="content-header"><div><p class="eyebrow">PROPERTY LISTINGS</p><h2>Ready to search?</h2><p>Run the current definition against REA and Domain.</p></div><div class="header-actions"><button type="button" id="readme-toggle" class="theme-toggle" aria-expanded="false">Guide</button><button type="button" id="theme-toggle" class="theme-toggle" aria-pressed="false">Dark mode</button><button type="submit" form="criteria-form" class="run">Run search</button></div></header>
+      <section id="readme" class="panel readme-panel" hidden><div class="panel-heading"><h2>Property Search guide</h2><button type="button" id="readme-close">Close</button></div><div id="readme-content" class="markdown"></div></section>
+      <section id="results" class="panel results" hidden></section>
+      <section class="panel yaml-panel"><h2>YAML preview</h2><pre id="yaml"></pre></section>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
