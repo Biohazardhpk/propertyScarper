@@ -9,8 +9,17 @@ const propertyTypes = new Map([
   ['villa', 'villa'],
   ['land', 'vacant-land'],
   ['acreage', 'acreage-semi-rural'],
+  ['rural', 'acreage-semi-rural'],
   ['retirement', 'retirement'],
+  ['retire', 'retirement'],
   ['block of units', 'block-of-units'],
+  ['unitblock', 'block-of-units'],
+  ['semi detached', 'semi-detached'],
+  ['semidetached', 'semi-detached'],
+  ['new apartments', 'new-apartments'],
+  ['studio', 'studio'],
+  ['duplex', 'duplex'],
+  ['terrace', 'terrace'],
 ]);
 
 export function domainSearchUrl(criteria, location, page = 1) {

@@ -6,12 +6,20 @@ const first = (...values) => values.find((value) => value !== undefined && value
 const stripHtml = (value) => typeof value === 'string' ? value.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() : value;
 
 const propertyTypeMap = new Map([
+  ['house', 'house'],
   ['apartmentunitflat', 'apartment'],
   ['newapartments', 'apartment'],
+  ['townhouse', 'townhouse'],
+  ['villa', 'villa'],
   ['vacantland', 'land'],
   ['acreagesemirural', 'acreage'],
+  ['rural', 'acreage'],
+  ['retirement', 'retirement'],
   ['blockofunits', 'block of units'],
   ['semidetached', 'semi detached'],
+  ['studio', 'studio'],
+  ['duplex', 'duplex'],
+  ['terrace', 'terrace'],
 ]);
 
 const normalizePropertyType = (value) => {
