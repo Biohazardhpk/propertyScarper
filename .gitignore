@@ -4,3 +4,8 @@ data/
 .property-search-profile/
 coverage/
 .env
+*.sqlite
+*.db
+scraped/
+cache/
+downloads/

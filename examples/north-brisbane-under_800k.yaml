@@ -1,0 +1,94 @@
+locations:
+  - Narangba QLD 4504
+  - Burpengary QLD 4505
+  - Morayfield QLD 4506
+  - Kallangur QLD 4503
+  - Petrie QLD 4502
+  - Strathpine QLD 4500
+  - Bray Park QLD 4500
+  - Lawnton QLD 4501
+  - Deception Bay QLD 4508
+  - Caboolture QLD 4510
+  - North Lakes QLD 4509
+  - Mango Hill QLD 4509
+  - Rothwell QLD 4022
+  - Dakabin QLD 4503
+  - Griffin QLD 4503
+  - Murrumba Downs QLD 4503
+  - Kurwongbah QLD 4503
+  - Joyner QLD 4500
+  - Warner QLD 4500
+  - Brendale QLD 4500
+  - Eatons Hill QLD 4037
+  - Albany Creek QLD 4035
+  - Bridgeman Downs QLD 4035
+  - Carseldine QLD 4034
+  - Aspley QLD 4034
+  - Zillmere QLD 4034
+  - Geebung QLD 4034
+  - Chermside QLD 4032
+  - Chermside West QLD 4032
+  - Bald Hills QLD 4036
+  - Bracken Ridge QLD 4017
+  - Fitzgibbon QLD 4018
+  - Taigum QLD 4018
+  - Boondall QLD 4034
+  - Sandgate QLD 4017
+  - Shorncliffe QLD 4017
+  - Brighton QLD 4017
+  - Beachmere QLD 4510
+  - Caboolture South QLD 4510
+  - Upper Caboolture QLD 4510
+  - Bellmere QLD 4510
+  - Burpengary East QLD 4505
+
+transaction_type: buy
+include_surrounding_suburbs: false
+
+price:
+  max: 800000
+
+property:
+  types:
+    - house
+    - townhouse
+    - acreage
+    - duplex
+  bedrooms_min: 3
+  bathrooms_min: 1
+  carspaces_min: 2
+  established_only: true
+
+# Preferences affect ranking only — they do not exclude a property.
+preferences:
+  land_min_m2: 600
+
+keywords:
+  any:
+    - side access
+    - caravan
+    - camper
+    - trailer
+    - shed
+    - powered shed
+    - workshop
+    - outbuilding
+    - dual access
+    - rear access
+    - vehicle access
+    - drive through access
+
+exclude_keywords:
+  - retirement
+  - over 50
+  - over 55
+  - lifestyle village
+
+# Keywords improve ranking but are not mandatory.
+strict_keyword_match: false
+
+# Do not show properties already under offer/contract.
+exclude_under_contract: true
+
+sort:
+  by: newest

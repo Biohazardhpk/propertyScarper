@@ -109,6 +109,7 @@ The YAML reader supports mappings, indented lists, inline lists, scalar numbers,
 | `property.land_min_m2` | number | Minimum land size in square metres. |
 | `property.land_max_m2` | number | Maximum land size in square metres. |
 | `property.established_only` | boolean | Exclude listings identified as new developments or off-the-plan. Default: `false`. |
+| `preferences.land_min_m2` | number | Soft land-size preference in square metres. Listings below this value remain eligible but do not receive land preference points. |
 | `keywords.any` | list of strings | Optional phrases searched case-insensitively in the title, description and feature text. |
 | `exclude_keywords` | list of strings | Optional phrases that remove a listing when found in the title, description or feature text. |
 | `strict_keyword_match` | boolean | If `true`, require at least one `keywords.any` match. Default: `false`. |
@@ -182,8 +183,19 @@ property:
 
 - `types` is a list; a listing must match one of the selected types.
 - `bedrooms_min`, `bathrooms_min` and `carspaces_min` are inclusive minimums.
-- `land_min_m2` and `land_max_m2` are inclusive square-metre bounds. A missing land-size value cannot satisfy `land_min_m2`; a missing value is not rejected by `land_max_m2`.
+- `land_min_m2` and `land_max_m2` are inclusive square-metre bounds. A missing land-size value cannot satisfy `land_min_m2`; a missing value is not rejected by `land_max_m2`. `land_min_m2` is a hard filter.
 - `established_only: true` removes listings identified as new developments or off-the-plan. It depends on the provider exposing that status.
+
+### `preferences`
+
+Preferences affect ranking only; they never remove a listing. Use this when you want to prefer larger lots without requiring them:
+
+```yaml
+preferences:
+  land_min_m2: 600
+```
+
+`preferences.land_min_m2` awards the land points to listings at or above the target. Listings below the target remain in the results and receive no land preference points. If both `property.land_min_m2` and `preferences.land_min_m2` are set, the property value remains a hard filter and the preference value is used for land ranking points.
 
 ### Property types
 
@@ -291,9 +303,11 @@ property:
   bedrooms_min: 3
   bathrooms_min: 2
   carspaces_min: 2
-  land_min_m2: 600
   land_max_m2: 2000
   established_only: true
+
+preferences:
+  land_min_m2: 600
 
 keywords:
   any:
@@ -311,25 +325,25 @@ sort:
   by: newest
 ```
 
-There are currently no YAML fields for maximum bedrooms, maximum bathrooms, maximum car spaces, building size, auction-only searches, price-per-square-metre, school distance, travel time, or arbitrary distance/radius searches. Adding those keys to a file will not apply those filters.
+There are currently no YAML fields for maximum bedrooms, maximum bathrooms, maximum car spaces, preferred minimum bedrooms, preferred minimum bathrooms, preferred minimum car spaces, preferred building size, building size filters, auction-only searches, price-per-square-metre, school distance, travel time, or arbitrary distance/radius searches. Adding those keys to a file will not apply those filters or preferences.
 
 ## Ranking score
 
-Filtering happens before ranking. A property must pass the configured price, type, bedroom, bathroom, car-space, land-size, keyword and contract filters before it is displayed.
+Filtering happens before ranking. A property must pass the configured price, type, bedroom, bathroom, hard land-size, keyword and contract filters before it is displayed. Soft preferences only affect the score.
 
 The score only controls result order:
 
 | Match | Points |
 | --- | ---: |
-| Meets the minimum land size | +20 |
-| Land is at least 20% above the minimum | +10 |
+| Meets the configured land ranking target (`preferences.land_min_m2`, or `property.land_min_m2` when no preference is set) | +20 |
+| Land is at least 20% above the land ranking target | +10 |
 | Bedrooms exceed the minimum | +10 |
 | Car spaces exceed the minimum | +10 |
 | First matching keyword | +10 |
 | Each additional matching keyword | +5 |
 | Same physical property found on both REA and Domain | +5 |
 
-Matching a minimum exactly does not add points. Bathrooms, price, property type and newest-listing order are filters or sort criteria, not score criteria. Therefore a property with exactly 3 bedrooms, 2 car spaces and 600 m², no keyword matches, and both provider sources scores 5 from the cross-provider match alone.
+Matching a minimum exactly does not add bedroom or car-space points. A land ranking target is different: meeting it awards the +20 land points even when it is a soft preference. Bathrooms, price, property type and newest-listing order are filters or sort criteria, not score criteria. Therefore a property with exactly 3 bedrooms, 2 car spaces and 600 m², no keyword matches, and both provider sources scores 5 when no land target is configured, or 25 when 600 m² is configured as a land preference.
 
 ## Configuration
 

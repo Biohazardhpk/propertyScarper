@@ -22,11 +22,39 @@ const loadListings = async () => {
 };
 
 test('parses documented YAML criteria without changing REA behaviour', async () => {
-  const criteria = parseCriteriaYaml(await readFile('examples/north-brisbane.yaml', 'utf8'));
+  const criteria = parseCriteriaYaml(`locations:
+  - Narangba QLD 4504
+transaction_type: buy
+price:
+  max: 900000
+property:
+  types: [house]
+  bedrooms_min: 3
+  carspaces_min: 2
+  land_min_m2: 600
+  established_only: true
+keywords:
+  any: [side access, caravan, camper, trailer, shed, dual access]
+exclude_keywords: [retirement, townhouse, apartment]
+exclude_under_contract: true
+sort:
+  by: newest`);
   assert.equal(criteria.maxPrice, 900000);
   assert.equal(criteria.minLandAreaM2, 600);
   assert.deepEqual(criteria.propertyTypes, ['house']);
   assert.deepEqual(criteria.keywords.slice(0, 2), ['side access', 'caravan']);
+});
+
+test('parses and ranks the soft land preference without filtering smaller lots', () => {
+  const criteria = parseCriteriaYaml('locations:\n  - Narangba QLD 4504\ntransaction_type: buy\npreferences:\n  land_min_m2: 600\n');
+  assert.equal(criteria.preferredMinLandAreaM2, 600);
+  const properties = rank([
+    { landAreaM2: 500, listings: [{ source: 'rea', matchedKeywords: [] }] },
+    { landAreaM2: 600, listings: [{ source: 'rea', matchedKeywords: [] }] },
+  ], criteria);
+  assert.deepEqual(properties.map((property) => property.landAreaM2), [600, 500]);
+  assert.equal(properties[0].score, 20);
+  assert.equal(properties[1].score, 0);
 });
 
 test('builds REA and Domain public search URLs from common criteria', () => {
