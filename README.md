@@ -1,52 +1,51 @@
 # Australia Property Search
 
-Local CLI for searching realestate.com.au and Domain with one YAML file. Results are filtered, ranked, deduplicated, and stored in SQLite.
+Search realestate.com.au and Domain from one local command. REA uses local Chrome; Domain uses the `blackfalcondata/domain-com-au-scraper` actor on Apify.
 
-## Requirements
-
-- Node.js 22.5+
-- Google Chrome
-
-No API token or `.env` file is required. The application uses Patchright with your locally installed Chrome.
+Results are filtered, ranked, matched by address and stored in SQLite.
 
 ## Install
 
+Requirements: Node.js 22.5 or newer, Google Chrome and an Apify account.
+
 ```bash
 npm install
-npm test
 npm link
 property-search setup
 ```
 
-`property-search setup` opens Chrome once to prepare the persistent REA browser profile.
+## Apify token
 
-Without `npm link`, use `node bin/property-search.js` instead of `property-search`.
+Copy your API token from Apify Console and add it to `.env`:
 
-## Run a search
+```dotenv
+APIFY_TOKEN=your-token
+```
 
-A working example is included at [examples/north-brisbane-under-800k.yaml](examples/north-brisbane-under-800k.yaml):
+The token is read locally and `.env` is ignored by Git. Domain searches run a third-party paid Apify actor and consume the account's usage or credits.
+
+## Search
 
 ```bash
 property-search search examples/north-brisbane-under-800k.yaml
 ```
 
-Options:
+Both providers run by default. To run one provider:
 
 ```bash
-# JSON output
-property-search search examples/north-brisbane-under-800k.yaml --json
-
-# One provider only
 property-search search examples/north-brisbane-under-800k.yaml --provider rea
 property-search search examples/north-brisbane-under-800k.yaml --provider domain
-
-# Save HTML, screenshots, and network diagnostics
-property-search search examples/north-brisbane-under-800k.yaml --debug
 ```
 
-Both providers run by default. If one fails, results from the other are still returned.
+For JSON output:
 
-## Criteria file
+```bash
+property-search search examples/north-brisbane-under-800k.yaml --json
+```
+
+If one provider fails, results from the other provider are still returned with a provider warning.
+
+## Criteria
 
 ```yaml
 locations:
@@ -54,9 +53,9 @@ locations:
   - Burpengary QLD 4505
 
 transaction_type: buy
+include_surrounding_suburbs: false
 
 price:
-  min: 500000
   max: 800000
 
 property:
@@ -66,8 +65,6 @@ property:
   bathrooms_min: 2
   carspaces_min: 2
   land_min_m2: 600
-  land_max_m2: 2000
-  established_only: true
 
 keywords:
   any:
@@ -76,7 +73,6 @@ keywords:
 
 exclude_keywords:
   - retirement
-  - townhouse
 
 strict_keyword_match: false
 exclude_under_contract: true
@@ -85,61 +81,42 @@ sort:
   by: newest
 ```
 
-Required fields:
+`locations` and `transaction_type` are required. Transaction type may be `buy`, `rent` or `sold`.
 
-- `locations`: one or more locations
-- `transaction_type`: `buy`, `rent`, or `sold`
-
-`newest` is the supported sort option. Keyword matches normally improve ranking; set `strict_keyword_match: true` to require a match.
-
-## Search history
-
-Results are stored in `data/property-search.sqlite`. Repeating the same search can report new or removed properties, price and URL changes, and portal sources being added or removed.
+The Domain provider converts each location and filter into a Domain search URL, passes those URLs to the Apify actor, and normalizes the actor's output into the same model used by REA.
 
 ## Configuration
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PROPERTY_SEARCH_DB` | `data/property-search.sqlite` | Database path |
-| `PROPERTY_SEARCH_PROFILE` | `.property-search-profile` | Chrome profile path |
-| `PROPERTY_SEARCH_BROWSER_CHANNEL` | `chrome` | Installed browser channel |
-| `PROPERTY_SEARCH_TIMEOUT` | `60000` | Navigation timeout in milliseconds |
-| `PROPERTY_SEARCH_MAX_PAGES` | `10` | Page limit per location and provider |
-| `PROPERTY_SEARCH_HEADED` | unset | Set to `1` to show Chrome |
+| `APIFY_TOKEN` | none | Required for Domain searches |
+| `PROPERTY_SEARCH_DOMAIN_ACTOR` | `blackfalcondata/domain-com-au-scraper` | Apify actor ID |
+| `PROPERTY_SEARCH_DOMAIN_MAX_RESULTS` | `200` | Maximum Domain results per run; controls usage |
+| `PROPERTY_SEARCH_DOMAIN_DETAILS` | unset | Set to `1` for richer, slower Domain detail extraction |
+| `PROPERTY_SEARCH_APIFY_TIMEOUT` | `300000` | Maximum Apify run wait in milliseconds |
+| `PROPERTY_SEARCH_DB` | `data/property-search.sqlite` | SQLite database path |
+| `PROPERTY_SEARCH_PROFILE` | `.property-search-profile` | REA Chrome profile path |
+| `PROPERTY_SEARCH_TIMEOUT` | `60000` | REA navigation timeout |
+| `PROPERTY_SEARCH_MAX_PAGES` | `10` | Maximum pages per provider |
+| `PROPERTY_SEARCH_HEADED` | unset | Set to `1` to show REA Chrome |
 
-Example:
+## History
 
-```bash
-PROPERTY_SEARCH_HEADED=1 property-search search examples/north-brisbane-under-800k.yaml
-```
+Search history is stored in `data/property-search.sqlite`. Provider identity uses `(source, source listing ID)`, so matching Domain and REA records remain separate.
 
-## Troubleshooting
+The database tracks first and last seen times, price, URL, status and description changes, disappearance and relisting. Existing databases are migrated in place.
 
-- `BLOCKED`: run `property-search setup` again, or retry with `PROPERTY_SEARCH_HEADED=1`.
-- `TIMEOUT`: increase `PROPERTY_SEARCH_TIMEOUT` or reduce `PROPERTY_SEARCH_MAX_PAGES`.
-- `PARSING`: rerun with `--debug`; the portal structure may have changed.
-- Profile already in use: close other searches or Chrome processes using `.property-search-profile`.
-
-Debug files are saved under `.debug/<timestamp>/<provider>/<location>/page-<number>/`.
-
-Domain may return HTTP 403 on some networks. This is reported as a provider failure rather than an empty successful result.
-
-## Development
+## Tests
 
 ```bash
 npm test
 npm run check
 ```
 
-Tests use local fixtures and do not contact live websites.
+Tests normally use saved fixtures and mocked Apify responses. With `APIFY_TOKEN` configured, this runs a small live actor test capped at five results:
 
-## References and licence
+```bash
+npm run test:domain
+```
 
-Implementation patterns were informed by:
-
-- `ErrolMc/RealEstateMCP`: persistent Chrome, REA warm-up, URL construction, and hydration parsing.
-- `callanjfox/realestate-scraping`: pagination, fixtures, and incremental synchronization.
-- `muhashi/realestate.com.au` (CC0-1.0): criteria and normalization concepts.
-- `RealEstateWebTools/property_web_scraper` (MIT): structured metadata mappings.
-
-No source was copied from repositories without a licence. This project is released under the [MIT licence](LICENSE).
+Licensed under the [MIT licence](LICENSE).

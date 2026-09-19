@@ -3,3 +3,4 @@ data/
 .debug/
 .property-search-profile/
 coverage/
+.env

@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node bin/property-search.js",
     "test": "node --test test/**/*.test.js",
+    "test:domain": "DOMAIN_INTEGRATION=1 node --test test/domain.integration.test.js",
     "check": "node --check bin/property-search.js && node --check src/core/search.js"
   },
   "dependencies": { "patchright": "^1.55.2" },
