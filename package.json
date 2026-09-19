@@ -1,0 +1,14 @@
+{
+  "name": "australia-property-search",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "property-search": "./bin/property-search.js" },
+  "scripts": {
+    "start": "node bin/property-search.js",
+    "test": "node --test test/**/*.test.js",
+    "check": "node --check bin/property-search.js && node --check src/core/search.js"
+  },
+  "dependencies": { "patchright": "^1.55.2" },
+  "engines": { "node": ">=22.5" }
+}

@@ -1,0 +1,3 @@
+[
+  {"id":"rea-1","address":{"display":{"fullAddress":"12 Smith Street, Narangba QLD 4504","shortAddress":"12 Smith Street"},"suburb":"Narangba","state":"QLD","postcode":"4504"},"price":{"display":"$785,000"},"propertyType":{"id":"house","display":"House"},"generalFeatures":{"bedrooms":{"value":4},"bathrooms":{"value":2},"parkingSpaces":{"value":3}},"propertySizes":{"land":{"displayValue":"714","sizeUnit":{"displayValue":"m²"}}},"headline":"Side access and large shed","description":"Room for caravan or trailer.","status":"active","_links":{"canonical":{"href":"https://www.realestate.com.au/property-house-qld-narangba-rea-1"}}}
+]

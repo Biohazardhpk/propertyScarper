@@ -1,0 +1,21 @@
+locations:
+  - Narangba QLD 4504
+  - Burpengary QLD 4505
+  - Morayfield QLD 4506
+  - Petrie QLD 4502
+  - Kallangur QLD 4503
+transaction_type: buy
+price:
+  max: 900000
+property:
+  types: [house]
+  bedrooms_min: 3
+  carspaces_min: 2
+  land_min_m2: 600
+  established_only: true
+keywords:
+  any: [side access, caravan, camper, trailer, shed, dual access]
+exclude_keywords: [retirement, townhouse, apartment]
+exclude_under_contract: true
+sort:
+  by: newest
