@@ -6,3 +6,5 @@
 .results-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.results-heading>label{min-width:150px}.results-heading p{margin:0 0 4px}.results-heading select{margin-top:5px}
 @media(max-width:620px){.results-heading{align-items:stretch;flex-direction:column}.results-heading>label{min-width:0}}
 .yaml-editor{min-height:480px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.45;white-space:pre;tab-size:2}
+.yaml-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}.yaml-heading h2{margin:0}.yaml-actions{display:flex;gap:8px}.yaml-actions button{white-space:nowrap}
+@media(max-width:620px){.yaml-heading{align-items:stretch;flex-direction:column}.yaml-actions{width:100%}.yaml-actions button{flex:1}}

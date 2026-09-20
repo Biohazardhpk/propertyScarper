@@ -19,7 +19,7 @@
           <label>Preferred keywords <span>one per line</span><textarea name="keywords"></textarea></label><label>Exclude keywords <span>one per line</span><textarea name="excludeKeywords"></textarea></label>
         </div>
         <div class="checks"><label><input name="includeSurroundingSuburbs" type="checkbox"> Include surrounding suburbs</label><label><input name="establishedOnly" type="checkbox"> Established only</label><label><input name="strictKeywordMatch" type="checkbox"> Require a keyword match</label><label><input name="excludeUnderContract" type="checkbox"> Exclude under contract</label><label><input id="debug" type="checkbox"> Save REA diagnostics</label></div>
-        <button type="button" id="save">Save YAML</button>
+        <button type="button" id="save">Save form as YAML</button>
       </form>
     </aside>
     <section class="content">
@@ -27,7 +27,7 @@
       <section id="readme" class="panel readme-panel" hidden><div class="panel-heading"><h2>Property Search guide</h2><button type="button" id="readme-close">Close</button></div><div id="readme-content" class="markdown"></div></section>
       <section id="results" class="panel results" hidden></section>
       <section id="search-progress" class="panel search-progress" hidden aria-live="polite"><div class="progress-heading"><strong id="progress-label">Preparing search</strong><span id="progress-value">0%</span></div><div class="progress-track" role="progressbar" aria-label="Search progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-bar"></div></div><div id="search-log" class="search-log" aria-label="Search activity"></div></section>
-      <section class="panel yaml-panel"><h2>YAML editor</h2><textarea id="yaml" class="yaml-editor" spellcheck="false" aria-label="YAML definition"></textarea></section>
+      <section class="panel yaml-panel"><div class="yaml-heading"><h2>YAML editor</h2><div class="yaml-actions"><button type="button" id="edit-yaml">Edit YAML</button><button type="button" id="save-yaml" disabled>Save YAML</button></div></div><textarea id="yaml" class="yaml-editor" spellcheck="false" readonly aria-label="YAML definition"></textarea></section>
     </section>
   </main>
   <script src="/app.js"></script>
