@@ -11,6 +11,7 @@ const trackedStatus = (listing) => {
   if (!status || /^added\s/i.test(status) || /^(new|featured|sponsored)$/i.test(status)) return null;
   return status;
 };
+const snapshotSort = (value) => ['newest', 'oldest', 'score'].includes(value) ? value : 'newest';
 
 export class SQLiteStore {
   constructor(path) {
@@ -62,11 +63,40 @@ export class SQLiteStore {
     this.db.prepare(`INSERT INTO ${table}(completed_at,result_json) VALUES (?,?)`).run(new Date().toISOString(), JSON.stringify(result));
   }
 
-  loadSnapshot(definitionName) {
+  loadSnapshot(definitionName, sort = 'newest') {
     const table = this.snapshotTable(definitionName);
     if (!this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table)) return undefined;
     const row = this.db.prepare(`SELECT result_json FROM ${table} ORDER BY id DESC LIMIT 1`).get();
-    return row ? JSON.parse(row.result_json) : undefined;
+    if (!row) return undefined;
+    const result = JSON.parse(row.result_json);
+    if (!Array.isArray(result.properties) || result.properties.length < 2 || result.searchId == null) return result;
+
+    const order = snapshotSort(sort);
+    const orderBy = order === 'score'
+      ? 'sr.score IS NULL, sr.score DESC, sr.property_key ASC'
+      : order === 'oldest'
+        ? 'first_observed IS NULL, first_observed ASC, sr.property_key ASC'
+        : 'first_observed IS NULL, first_observed DESC, sr.property_key ASC';
+    const rows = this.db.prepare(`
+      SELECT sr.property_key, sr.score,
+        p.first_seen AS first_observed,
+        p.last_seen AS last_observed
+      FROM search_results sr
+      LEFT JOIN result_listings rl ON rl.search_id = sr.search_id AND rl.property_key = sr.property_key
+      LEFT JOIN listings l ON l.source = rl.source AND l.source_listing_id = rl.source_listing_id
+      LEFT JOIN properties p ON p.property_key = sr.property_key
+      WHERE sr.search_id = ?
+      GROUP BY sr.property_key, sr.score, p.first_seen, p.last_seen
+      ORDER BY ${orderBy}
+    `).all(result.searchId);
+    if (!rows.length) return result;
+    const rank = new Map(rows.map((item, index) => [item.property_key, index]));
+    result.properties = [...result.properties].sort((a, b) => {
+      const aKey = a.addressKey || a.propertyId;
+      const bKey = b.addressKey || b.propertyId;
+      return (rank.get(aKey) ?? Number.MAX_SAFE_INTEGER) - (rank.get(bKey) ?? Number.MAX_SAFE_INTEGER);
+    });
+    return result;
   }
 
   persistResults(searchId, properties, options = {}) {

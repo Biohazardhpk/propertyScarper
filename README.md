@@ -70,6 +70,8 @@ If one provider fails, results from the other provider are still returned with a
 
 If Railway cannot complete the REA browser request, run the REA browser on your local machine and let Railway handle the UI, Domain search, filtering and storage. The worker polls Railway over HTTPS, so your local machine does not need an inbound port or a public IP.
 
+This uses **one Railway service only**. Do not create a second Railway service for the worker: the existing UI service exposes the authenticated worker queue, and `npm run rea-worker` is the worker process that you run locally.
+
 1. Create one long random token. Put the same token in the Railway service variables and use it when starting the local worker:
 
 ```bash
@@ -88,11 +90,14 @@ PROPERTY_SEARCH_REA_WORKER_TOKEN=the-token-from-step-1
 ```bash
 PROPERTY_SEARCH_REA_WORKER_URL=https://your-service.up.railway.app \
 PROPERTY_SEARCH_REA_WORKER_TOKEN=the-token-from-step-1 \
+PROPERTY_SEARCH_REA_WORKER_PROFILE=.property-search-profile \
 PROPERTY_SEARCH_HEADED=1 \
 npm run rea-worker
 ```
 
 The worker uses the local Chrome installation and `PROPERTY_SEARCH_PROFILE` profile. The Railway UI will show messages such as `REA: queued local Chrome job`, `REA worker: local Chrome started`, and the REA request URL in its progress log. Do not set `PROPERTY_SEARCH_REA_WORKER_URL` in the environment used by a local UI unless you want that UI to send its REA work to the worker; without it, local UI searches continue to use local Chrome directly.
+
+Railway's `/data/...` paths are for the Railway service only. If they are present in your local `.env`, the worker automatically uses `.property-search-profile` instead. Set `PROPERTY_SEARCH_REA_WORKER_PROFILE` if you want a different local Chrome profile.
 
 Worker settings:
 
@@ -103,6 +108,7 @@ Worker settings:
 | `PROPERTY_SEARCH_REA_WORKER_POLL` | `2000` | Poll interval in milliseconds for worker jobs and status. |
 | `PROPERTY_SEARCH_REA_WORKER_TIMEOUT` | `300000` | Maximum time the Railway UI waits for a local REA job. |
 | `PROPERTY_SEARCH_REA_WORKER_HTTP_TIMEOUT` | `60000` | Local worker HTTP request timeout. |
+| `PROPERTY_SEARCH_REA_WORKER_PROFILE` | `.property-search-profile` | Local Chrome profile path. |
 
 ## Criteria
 
@@ -140,7 +146,7 @@ sort:
   by: newest
 ```
 
-`locations` and `transaction_type` are required. Transaction type may be `buy`, `rent` or `sold`.
+`locations` and `transaction_type` are required. The web form offers `buy` and `rent`; YAML and CLI definitions also accept `sold`.
 
 The Domain provider converts each location and filter into a Domain search URL, passes those URLs to the Apify actor, and normalizes the actor's output into the same model used by REA.
 
@@ -167,7 +173,7 @@ The YAML reader supports mappings, indented lists, inline lists, scalar numbers,
 | `exclude_keywords` | list of strings | Optional phrases that remove a listing when found in the title, description or feature text. |
 | `strict_keyword_match` | boolean | If `true`, require at least one `keywords.any` match. Default: `false`. |
 | `exclude_under_contract` | boolean | Remove listings marked under contract, under offer or sold subject to contract. Default: `false`. |
-| `sort.by` | `newest` | Sort by newest listing where supported. Missing or other values use the provider's default order. Sold REA searches use sold-date order. |
+| `sort.by` | `newest` | Provider request order. `newest` asks providers for newest/date-updated results where supported. |
 
 ### `locations`
 
@@ -316,7 +322,7 @@ When enabled, listings whose provider status contains `under contract`, `under o
 
 ### `sort`
 
-The only supported application sort value is `newest`:
+The YAML `sort.by` value controls the provider request. The supported value is `newest`:
 
 ```yaml
 sort:
@@ -324,6 +330,16 @@ sort:
 ```
 
 `newest` requests newest/date-updated ordering from the providers where supported. If `sort` is omitted, results use provider order. Values such as `price`, `price_asc`, `price_desc`, `suburb` or `distance` are not implemented and should not be used.
+
+### Display sorting
+
+The results panel has a separate **Display order** control. It reads the saved result from SQLite and supports:
+
+- **Newest** — most recently first observed in the database first (`first_seen`).
+- **Oldest** — earliest first observation in the database first (`first_seen`).
+- **Highest score** — highest ranking score first.
+
+Changing display order does not run the providers again or change the YAML definition.
 
 ### Minimal and complete files
 

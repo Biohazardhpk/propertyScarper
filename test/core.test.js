@@ -220,6 +220,23 @@ test('SQLite keeps latest UI results in a separate table for each YAML definitio
   store.close();
 });
 
+test('SQLite sorts saved UI results using database records', () => {
+  const path = `/tmp/property-search-sorting-${crypto.randomUUID()}.sqlite`;
+  const store = new SQLiteStore(path);
+  const property = (key, score) => ({ propertyId: key, addressKey: key, address: { fullAddress: key }, score, listings: [{ source: 'rea', sourceListingId: key, sourceUrl: `https://example.test/${key}`, price: { numeric: score } }] });
+  const searchId = store.beginSearch({ locations: ['Narangba'], transactionType: 'buy' });
+  const oldProperty = property('old', 5);
+  const newProperty = property('new', 25);
+  store.persistResults(searchId, [oldProperty, newProperty]);
+  store.db.prepare('UPDATE properties SET first_seen=?, last_seen=? WHERE property_key=?').run('2025-01-01T00:00:00.000Z', '2025-01-02T00:00:00.000Z', 'old');
+  store.db.prepare('UPDATE properties SET first_seen=?, last_seen=? WHERE property_key=?').run('2025-02-01T00:00:00.000Z', '2025-02-02T00:00:00.000Z', 'new');
+  store.saveSnapshot('sort.yaml', { searchId, properties: [oldProperty, newProperty] });
+  assert.deepEqual(store.loadSnapshot('sort.yaml', 'newest').properties.map((item) => item.propertyId), ['new', 'old']);
+  assert.deepEqual(store.loadSnapshot('sort.yaml', 'oldest').properties.map((item) => item.propertyId), ['old', 'new']);
+  assert.deepEqual(store.loadSnapshot('sort.yaml', 'score').properties.map((item) => item.propertyId), ['new', 'old']);
+  store.close();
+});
+
 test('provider failure is isolated', async () => {
   const path = `/tmp/property-search-${crypto.randomUUID()}.sqlite`;
   const store = new SQLiteStore(path);

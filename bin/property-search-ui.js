@@ -24,7 +24,7 @@ const body = async (request) => new Promise((resolveBody, reject) => { let input
 const definitionName = (value = basename(initialCriteriaPath)) => { const name = basename(String(value)); if (!/^[\w.-]+\.ya?ml$/i.test(name)) throw new Error('Choose a YAML filename ending in .yaml or .yml'); return name; };
 const definitionPath = (name) => resolve(definitionsDir, definitionName(name));
 const databasePath = () => process.env.PROPERTY_SEARCH_DB ?? 'data/property-search.sqlite';
-const latestResult = (name) => { const store = new SQLiteStore(databasePath()); try { return store.loadSnapshot(name); } finally { store.close(); } };
+const latestResult = (name, sort = 'newest') => { const store = new SQLiteStore(databasePath()); try { return store.loadSnapshot(name, sort); } finally { store.close(); } };
 async function listDefinitions() { return (await readdir(definitionsDir)).filter((name) => /\.ya?ml$/i.test(name)).sort(); }
 async function readConfig(name) { const safeName = definitionName(name); const yaml = await readFile(definitionPath(safeName), 'utf8'); return { name: safeName, yaml, form: criteriaToForm(parseCriteriaYaml(yaml)), lastResult: latestResult(safeName) }; }
 async function run(criteria, name, debug = false, onEvent) {
@@ -92,6 +92,11 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/api/readme') return json(response, 200, { markdown: await readFile(resolve('README.md'), 'utf8') });
     if (request.method === 'GET' && url.pathname === '/api/configs') return json(response, 200, { definitions: await listDefinitions(), current: basename(initialCriteriaPath) });
     if (request.method === 'GET' && url.pathname === '/api/config') return json(response, 200, await readConfig(url.searchParams.get('name') ?? undefined));
+    if (request.method === 'GET' && url.pathname === '/api/results') {
+      const name = definitionName(url.searchParams.get('name') ?? undefined);
+      const requestedSort = url.searchParams.get('sort'); const sort = ['newest', 'oldest', 'score'].includes(requestedSort) ? requestedSort : 'newest';
+      return json(response, 200, { name, sort, result: latestResult(name, sort) });
+    }
     if (request.method === 'POST' && url.pathname === '/api/configs') {
       const name = definitionName((await body(request)).name); const path = definitionPath(name);
       try { await readFile(path); throw new Error('A YAML definition with that name already exists'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
