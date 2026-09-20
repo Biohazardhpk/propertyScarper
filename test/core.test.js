@@ -276,6 +276,7 @@ test('remote REA provider queues, polls and returns local-worker listings', asyn
     return new Response(JSON.stringify({ state: 'SUCCEEDED', events: [{ type: 'worker-start', message: 'local Chrome started' }], listings: [{ source: 'rea', sourceListingId: 'rea-1' }] }), { status: 200 });
   };
   const provider = new RemoteReaProvider({ baseUrl: 'https://railway.example', token: 'worker-token', fetch, pollMs: 0 });
+  assert.equal(provider.timeoutMs, Infinity);
   const listings = await provider.search({ locations: ['Narangba QLD 4504'], transactionType: 'buy' }, { onEvent: (event) => events.push(event) });
   assert.equal(listings[0].sourceListingId, 'rea-1');
   assert.equal(events[0].message, 'REA: queued local Chrome job rea-job-1.');

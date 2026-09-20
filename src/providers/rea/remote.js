@@ -9,7 +9,8 @@ export class RemoteReaProvider {
     this.token = options.token ?? process.env.PROPERTY_SEARCH_REA_WORKER_TOKEN;
     this.fetch = options.fetch ?? globalThis.fetch;
     this.pollMs = Number(options.pollMs ?? process.env.PROPERTY_SEARCH_REA_WORKER_POLL ?? 2000);
-    this.timeoutMs = Number(options.timeoutMs ?? process.env.PROPERTY_SEARCH_REA_WORKER_TIMEOUT ?? 300000);
+    const timeoutMs = Number(options.timeoutMs ?? process.env.PROPERTY_SEARCH_REA_WORKER_TIMEOUT ?? 0);
+    this.timeoutMs = timeoutMs > 0 ? timeoutMs : Infinity;
   }
 
   async request(path, options = {}) {
@@ -38,7 +39,7 @@ export class RemoteReaProvider {
     const created = await this.request('/api/rea-worker/jobs', { method: 'POST', body: JSON.stringify({ criteria }) });
     if (!created?.jobId) throw new ProviderError('REA worker did not return a job ID', 'PARSING');
     notify({ type: 'request', message: `REA: queued local Chrome job ${created.jobId}.` });
-    const deadline = Date.now() + this.timeoutMs; let eventIndex = 0;
+    const deadline = Number.isFinite(this.timeoutMs) ? Date.now() + this.timeoutMs : Infinity; let eventIndex = 0;
     while (Date.now() < deadline) {
       const status = await this.request(`/api/rea-worker/jobs/${encodeURIComponent(created.jobId)}?after=${eventIndex}`);
       for (const event of status?.events ?? []) { notify(event); eventIndex++; }

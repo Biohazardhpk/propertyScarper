@@ -91,11 +91,10 @@ PROPERTY_SEARCH_REA_WORKER_TOKEN=the-token-from-step-1
 PROPERTY_SEARCH_REA_WORKER_URL=https://your-service.up.railway.app \
 PROPERTY_SEARCH_REA_WORKER_TOKEN=the-token-from-step-1 \
 PROPERTY_SEARCH_REA_WORKER_PROFILE=.property-search-profile \
-PROPERTY_SEARCH_HEADED=1 \
 npm run rea-worker
 ```
 
-The worker uses the local Chrome installation and `PROPERTY_SEARCH_PROFILE` profile. The Railway UI will show messages such as `REA: queued local Chrome job`, `REA worker: local Chrome started`, and the REA request URL in its progress log. Do not set `PROPERTY_SEARCH_REA_WORKER_URL` in the environment used by a local UI unless you want that UI to send its REA work to the worker; without it, local UI searches continue to use local Chrome directly.
+The worker uses the local Chrome installation in headless mode, so search pages do not open visibly. Set `PROPERTY_SEARCH_REA_WORKER_HEADED=1` only when you need to watch Chrome for troubleshooting. The Railway UI will show messages such as `REA: queued local Chrome job`, `REA worker: local Chrome started`, and the REA request URL in its progress log. Do not set `PROPERTY_SEARCH_REA_WORKER_URL` in the environment used by a local UI unless you want that UI to send its REA work to the worker; without it, local UI searches continue to use local Chrome directly.
 
 Railway's `/data/...` paths are for the Railway service only. If they are present in your local `.env`, the worker automatically uses `.property-search-profile` instead. Set `PROPERTY_SEARCH_REA_WORKER_PROFILE` if you want a different local Chrome profile.
 
@@ -106,9 +105,10 @@ Worker settings:
 | `PROPERTY_SEARCH_REA_WORKER_URL` | unset | Public HTTPS base URL of the Railway UI service. Enables remote REA execution in the Railway UI. |
 | `PROPERTY_SEARCH_REA_WORKER_TOKEN` | unset | Shared bearer token required by the Railway worker endpoints. |
 | `PROPERTY_SEARCH_REA_WORKER_POLL` | `2000` | Poll interval in milliseconds for worker jobs and status. |
-| `PROPERTY_SEARCH_REA_WORKER_TIMEOUT` | `300000` | Maximum time the Railway UI waits for a local REA job. |
+| `PROPERTY_SEARCH_REA_WORKER_TIMEOUT` | `0` | Maximum time the Railway UI waits for a local REA job in milliseconds. `0` means no limit. |
 | `PROPERTY_SEARCH_REA_WORKER_HTTP_TIMEOUT` | `60000` | Local worker HTTP request timeout. |
 | `PROPERTY_SEARCH_REA_WORKER_PROFILE` | `.property-search-profile` | Local Chrome profile path. |
+| `PROPERTY_SEARCH_REA_WORKER_HEADED` | unset | Set to `1` to show local Chrome; headless by default. |
 
 ## Criteria
 

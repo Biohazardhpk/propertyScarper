@@ -10,6 +10,7 @@ const baseUrl = String(process.env.PROPERTY_SEARCH_REA_WORKER_URL ?? '').replace
 const token = process.env.PROPERTY_SEARCH_REA_WORKER_TOKEN;
 const pollMs = Number(process.env.PROPERTY_SEARCH_REA_WORKER_POLL ?? 2000);
 const requestTimeoutMs = Number(process.env.PROPERTY_SEARCH_REA_WORKER_HTTP_TIMEOUT ?? 60000);
+const headed = process.env.PROPERTY_SEARCH_REA_WORKER_HEADED === '1';
 const configuredProfile = process.env.PROPERTY_SEARCH_REA_WORKER_PROFILE ?? process.env.PROPERTY_SEARCH_PROFILE;
 const profile = configuredProfile && !/^\/data(?:\/|$)/.test(configuredProfile) ? configuredProfile : '.property-search-profile';
 if (configuredProfile && profile !== configuredProfile) console.warn(`Ignoring Railway-only Chrome profile path ${configuredProfile}; using ${profile} for the local worker.`);
@@ -31,9 +32,9 @@ const sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolve
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { stopping = true; });
 
-const browser = new BrowserManager({ profile });
+const browser = new BrowserManager({ profile, headless: !headed });
 const provider = new ReaProvider({ manager: browser });
-console.log(`REA worker connected to ${baseUrl} using Chrome profile ${resolve(profile)}`);
+console.log(`REA worker connected to ${baseUrl} using ${headed ? 'headed' : 'headless'} Chrome profile ${resolve(profile)}`);
 while (!stopping) {
   try {
     const job = await request('/api/rea-worker/jobs/next');
