@@ -15,7 +15,7 @@ try { loadEnvFile(resolve('.env')); } catch (error) { if (error.code !== 'ENOENT
 const initialCriteriaPath = resolve(process.argv[2] ?? 'examples/north-brisbane-under_800k.yaml');
 const definitionsDir = dirname(initialCriteriaPath);
 const publicDir = resolve('src/web/public');
-const port = Number(process.env.PORT ?? 3000);
+const port = Number(process.env.PORT || 8080);
 const contentTypes = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
 const json = (response, status, value) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); response.end(JSON.stringify(value)); };
 const body = async (request) => new Promise((resolveBody, reject) => { let input = ''; request.on('data', (chunk) => { input += chunk; if (input.length > 1_000_000) reject(new Error('Request is too large')); }); request.on('end', () => { try { resolveBody(JSON.parse(input || '{}')); } catch { reject(new Error('Request body must be valid JSON')); } }); request.on('error', reject); });
@@ -61,4 +61,4 @@ const server = createServer(async (request, response) => {
     json(response, 404, { error: 'Not found' });
   } catch (error) { json(response, 400, { error: error.message ?? 'Unexpected error' }); }
 });
-server.listen(port, '127.0.0.1', () => console.log(`Property Search UI: http://localhost:${port}\nDefinitions: ${definitionsDir}`));
+server.listen(port, '0.0.0.0', () => console.log(`Property Search UI: http://localhost:${port}\nDefinitions: ${definitionsDir}`));

@@ -20,5 +20,5 @@ ENV NODE_ENV=production \
     PROPERTY_SEARCH_BROWSER_CHANNEL=chrome
 
 RUN mkdir -p /data
-EXPOSE 3000
+EXPOSE 8080
 CMD ["node", "bin/railway-start.js"]
