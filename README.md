@@ -110,6 +110,8 @@ Worker settings:
 | `PROPERTY_SEARCH_REA_WORKER_PROFILE` | `.property-search-profile` | Local Chrome profile path. |
 | `PROPERTY_SEARCH_REA_WORKER_HEADED` | unset | Set to `1` to show local Chrome; headless by default. |
 
+If the UI reports `Local REA worker did not finish within 300000ms`, an old Railway variable is overriding the unlimited default. Delete `PROPERTY_SEARCH_REA_WORKER_TIMEOUT` from Railway or set it to `0`, then redeploy the service.
+
 ## Criteria
 
 ```yaml
