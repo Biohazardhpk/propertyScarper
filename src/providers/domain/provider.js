@@ -77,7 +77,7 @@ export class DomainProvider {
 
   actorInput(criteria, urls) {
     return {
-      saleType: criteria.transactionType,
+      saleType: criteria.transactionType === 'auction' ? 'buy' : criteria.transactionType,
       startUrls: urls,
       maxResults: this.maxResults,
       maxPages: this.maxPages,

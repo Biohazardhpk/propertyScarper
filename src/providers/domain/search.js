@@ -23,7 +23,7 @@ const propertyTypes = new Map([
 ]);
 
 export function domainSearchUrl(criteria, location, page = 1) {
-  const channel = criteria.transactionType === 'buy' ? 'sale' : criteria.transactionType === 'sold' ? 'sold-listings' : 'rent';
+  const channel = criteria.transactionType === 'buy' || criteria.transactionType === 'auction' ? 'sale' : criteria.transactionType === 'sold' ? 'sold-listings' : 'rent';
   const query = new URLSearchParams();
   if (page > 1) query.set('page', String(page));
   if (criteria.minPrice != null || criteria.maxPrice != null) query.set('price', `${criteria.minPrice ?? 0}-${criteria.maxPrice ?? 'any'}`);
@@ -34,6 +34,7 @@ export function domainSearchUrl(criteria, location, page = 1) {
   if (criteria.propertyTypes?.length) query.set('ptype', [...new Set(criteria.propertyTypes.map((type) => propertyTypes.get(String(type).toLowerCase()) ?? slug(String(type))))].join(','));
   if (criteria.includeSurroundingSuburbs) query.set('ssubs', '1');
   if (criteria.excludeUnderContract) query.set('excludeunderoffer', '1');
+  if (criteria.transactionType === 'auction') query.set('auction', '1');
   if (criteria.sort === 'newest') query.set('sort', 'dateupdated-desc');
   return `https://www.domain.com.au/${channel}/${slug(location)}/?${query}`;
 }

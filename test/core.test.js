@@ -83,7 +83,12 @@ test('builds REA and Domain public search URLs from common criteria', () => {
 test('builds Domain sale, rent and sold routes dynamically', () => {
   assert.match(domainSearchUrl({ transactionType: 'buy' }, 'Petrie QLD 4502'), /\/sale\/petrie-qld-4502\//);
   assert.match(domainSearchUrl({ transactionType: 'rent' }, 'Petrie QLD 4502'), /\/rent\/petrie-qld-4502\//);
+  assert.match(domainSearchUrl({ transactionType: 'auction' }, 'Petrie QLD 4502'), /\/sale\/petrie-qld-4502\/\?auction=1/);
   assert.match(domainSearchUrl({ transactionType: 'sold' }, 'Petrie QLD 4502'), /\/sold-listings\/petrie-qld-4502\//);
+});
+
+test('builds an REA auction-times route', () => {
+  assert.match(reaSearchUrl({ transactionType: 'auction' }, 'Petrie QLD 4502'), /\/buy\/in-petrie\+qld\+4502\/auction-times-1\?activeSort=list-date/);
 });
 
 test('parses REA Argonaut hydration including exact and surrounding results', async () => {
@@ -165,6 +170,11 @@ test('strict keywords and unknown bounded values are filtered locally', () => {
   const base = { source: 'rea', sourceListingId: 'x', address: {}, propertyType: 'house', bedrooms: 3 };
   assert.equal(enrichAndFilter([base], { maxPrice: 10, keywords: ['shed'] }).length, 0);
   assert.equal(enrichAndFilter([{ ...base, price: { numeric: 5 }, description: 'plain' }], { strictKeywordMatch: true, keywords: ['shed'] }).length, 0);
+});
+
+test('auction transaction keeps only listings identified as auctions', () => {
+  const base = { source: 'rea', sourceListingId: 'x', address: {}, propertyType: 'house', bedrooms: 3 };
+  assert.equal(enrichAndFilter([{ ...base, isAuction: true }, { ...base, sourceListingId: 'y', isAuction: false }], { transactionType: 'auction' }).length, 1);
 });
 
 test('SQLite preserves composite provider identity and tracks listing changes', async () => {

@@ -57,7 +57,7 @@ Run the lightweight local UI with a criteria file (the example is the default):
 npm run ui -- examples/north-brisbane-under_800k.yaml
 ```
 
-Then open `http://localhost:8080`. The server listens on `0.0.0.0` so Railway and other hosted environments can route to it; `PORT` overrides `8080` when set. The form loads that YAML definition, saves form edits back to the same file, and runs the existing REA and Domain search pipeline. During a search, the progress bar and narrow three-line terminal show the current REA, Domain and Apify calls. Use the saved-definition menu to browse YAML files in the same folder or create a new one. Each definition has its own SQLite snapshot table, so switching definitions restores its most recently saved search results. The UI supports every documented YAML criterion, including the expanded property-type aliases. Enable **Save REA diagnostics** before a run to save REA page HTML, screenshots and captured JSON responses under `.debug/`. Search errors appear in the page; provider-specific errors still allow results from the other provider.
+Then open `http://localhost:8080`. The server listens on `0.0.0.0` so Railway and other hosted environments can route to it; `PORT` overrides `8080` when set. The form loads that YAML definition, saves form edits back to the same file, and lets you run **REA + Domain**, **REA only**, or **Domain only**. During a search, the progress bar and narrow three-line terminal show the current provider and Apify calls. Use the saved-definition menu to browse YAML files in the same folder or create a new one. Each definition has its own SQLite snapshot table, so switching definitions restores its most recently saved search results. The UI supports every documented YAML criterion, including the expanded property-type aliases. Enable **Save REA diagnostics** before a run to save REA page HTML, screenshots and captured JSON responses under `.debug/`. Search errors appear in the page; provider-specific errors still allow results from the other provider.
 
 ## Railway deployment
 
@@ -146,7 +146,7 @@ sort:
   by: newest
 ```
 
-`locations` and `transaction_type` are required. The web form offers `buy` and `rent`; YAML and CLI definitions also accept `sold`.
+`locations` and `transaction_type` are required. The web form offers `buy`, `rent` and `auction`; YAML and CLI definitions also accept `sold`.
 
 The Domain provider converts each location and filter into a Domain search URL, passes those URLs to the Apify actor, and normalizes the actor's output into the same model used by REA.
 
@@ -157,7 +157,7 @@ The YAML reader supports mappings, indented lists, inline lists, scalar numbers,
 | YAML path | Type | Meaning |
 | --- | --- | --- |
 | `locations` | list of strings | Required. One or more suburbs, regions or postcodes. Include state and postcode for reliable Domain searches, for example `Narangba QLD 4504`. |
-| `transaction_type` | `buy`, `rent`, `sold` | Required. Selects sale, rental or sold listings. Rental prices are generally weekly. |
+| `transaction_type` | `buy`, `rent`, `auction`, `sold` | Required. Selects sale, rental, auction or sold listings. Rental prices are generally weekly. Auction searches use sale listings and keep only listings identified as auctions. |
 | `include_surrounding_suburbs` | boolean | Include nearby suburbs where the provider supports it. Default: `false`. |
 | `price.min` | number | Minimum price in AUD. |
 | `price.max` | number | Maximum price in AUD. |
@@ -197,6 +197,7 @@ This required scalar accepts exactly:
 | --- | --- |
 | `buy` | Properties for sale |
 | `rent` | Rental properties; price is normally weekly |
+| `auction` | Active properties being sold by auction |
 | `sold` | Sold-listing results where the provider supports them |
 
 Example:
@@ -394,7 +395,7 @@ sort:
   by: newest
 ```
 
-There are currently no YAML fields for maximum bedrooms, maximum bathrooms, maximum car spaces, preferred minimum bedrooms, preferred minimum bathrooms, preferred minimum car spaces, preferred building size, building size filters, auction-only searches, price-per-square-metre, school distance, travel time, or arbitrary distance/radius searches. Adding those keys to a file will not apply those filters or preferences.
+There are currently no YAML fields for maximum bedrooms, maximum bathrooms, maximum car spaces, preferred minimum bedrooms, preferred minimum bathrooms, preferred minimum car spaces, preferred building size, building size filters, price-per-square-metre, school distance, travel time, or arbitrary distance/radius searches. Adding those keys to a file will not apply those filters or preferences.
 
 ## Ranking score
 

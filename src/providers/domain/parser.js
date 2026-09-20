@@ -67,6 +67,9 @@ export function mapDomainListing(input) {
   const media = first(x.media, x.images, x.imageUrl, x.image, x.media?.images, []);
   const contacts = x.advertiser?.contacts ?? x.agents ?? [];
   const labels = Array.isArray(x.labels) ? x.labels.join(' ') : x.labels;
+  const saleMethod = first(x.saleMethod, details.saleMethod, x.listingSummary?.saleMethod, x.saleDetails?.saleMethod);
+  const auctionDetails = first(x.auction, x.auctionDetails, details.auction, details.auctionDetails, x.saleDetails?.auction, x.listingSummary?.auction);
+  const auctionText = [saleMethod, auctionDetails && JSON.stringify(auctionDetails), x.status, x.listingStatus, x.label, labels, x.headline, x.title, x.description].filter(Boolean).join(' ');
 
   return {
     source: 'domain',
@@ -93,6 +96,9 @@ export function mapDomainListing(input) {
     imageUrls: (Array.isArray(media) ? media : [media]).filter((item) => !item?.category || /image/i.test(item.category)).map((item) => item?.url ?? item?.imageUrl ?? item).filter(Boolean),
     agent: { name: first(x.agent?.name, contacts[0]?.name, contacts[0]?.fullName), agency: first(x.advertiser?.name, x.agency?.name, x.agencyName) },
     listingStatus: first(x.status, x.listingStatus, x.label, labels, x.availability),
+    saleMethod,
+    auctionDate: auctionDetails?.date ?? auctionDetails?.auctionDate ?? x.auctionDate,
+    isAuction: Boolean(auctionDetails || /auction/i.test(String(saleMethod ?? '')) || /auction/i.test(auctionText)),
     isNewBuild: Boolean(x.isNewDevelopment || x.isNewBuild || /new development|off the plan/i.test(`${x.projectType ?? ''} ${details.propertyType ?? x.propertyType ?? ''}`)),
   };
 }

@@ -33,6 +33,7 @@ export function enrichAndFilter(listings, c) {
     if ((c.excludeKeywords ?? []).some((word) => haystack.includes(word.toLowerCase()))) return false;
     if (c.strictKeywordMatch && (c.keywords?.length ?? 0) && !l.matchedKeywords.length) return false;
     if (c.excludeUnderContract && underContract(l)) return false;
+    if (c.transactionType === 'auction' && l.isAuction !== true) return false;
     if (c.establishedOnly && l.isNewBuild === true) return false;
     const low = l.price?.min ?? l.price?.numeric; const high = l.price?.max ?? l.price?.numeric;
     if (c.minPrice != null && (high == null || high < c.minPrice)) return false;

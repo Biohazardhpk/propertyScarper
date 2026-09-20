@@ -25,6 +25,6 @@ export function parseCriteriaYaml(source) {
   }
   const c = { locations: root.locations, transactionType: root.transaction_type, minPrice: root.price?.min, maxPrice: root.price?.max, propertyTypes: root.property?.types, minBedrooms: root.property?.bedrooms_min, minBathrooms: root.property?.bathrooms_min, minCarspaces: root.property?.carspaces_min, minLandAreaM2: root.property?.land_min_m2, maxLandAreaM2: root.property?.land_max_m2, establishedOnly: root.property?.established_only, preferredMinLandAreaM2: root.preferences?.land_min_m2, includeSurroundingSuburbs: root.include_surrounding_suburbs, excludeUnderContract: root.exclude_under_contract, keywords: root.keywords?.any, excludeKeywords: root.exclude_keywords, strictKeywordMatch: root.strict_keyword_match, sort: root.sort?.by };
   if (!Array.isArray(c.locations) || !c.locations.length) throw new Error('locations must be a non-empty list');
-  if (!['buy', 'rent', 'sold'].includes(c.transactionType)) throw new Error('transaction_type must be buy, rent, or sold');
+  if (!['buy', 'rent', 'auction', 'sold'].includes(c.transactionType)) throw new Error('transaction_type must be buy, rent, auction, or sold');
   return c;
 }

@@ -27,15 +27,18 @@ const databasePath = () => process.env.PROPERTY_SEARCH_DB ?? 'data/property-sear
 const latestResult = (name, sort = 'newest') => { const store = new SQLiteStore(databasePath()); try { return store.loadSnapshot(name, sort); } finally { store.close(); } };
 async function listDefinitions() { return (await readdir(definitionsDir)).filter((name) => /\.ya?ml$/i.test(name)).sort(); }
 async function readConfig(name) { const safeName = definitionName(name); const yaml = await readFile(definitionPath(safeName), 'utf8'); return { name: safeName, yaml, form: criteriaToForm(parseCriteriaYaml(yaml)), lastResult: latestResult(safeName) }; }
-async function run(criteria, name, debug = false, onEvent) {
+async function run(criteria, name, debug = false, onEvent, providerMode = 'both') {
   let browser; let store;
   try {
-    const useRemoteRea = Boolean(process.env.PROPERTY_SEARCH_REA_WORKER_URL);
-    if (!useRemoteRea) browser = new BrowserManager();
+    const selected = providerMode === 'rea' || providerMode === 'domain' ? [providerMode] : ['rea', 'domain'];
+    const useRemoteRea = selected.includes('rea') && Boolean(process.env.PROPERTY_SEARCH_REA_WORKER_URL);
+    if (selected.includes('rea') && !useRemoteRea) browser = new BrowserManager();
     store = new SQLiteStore(databasePath());
     const debugRoot = debug ? `.debug/${new Date().toISOString().replace(/[:.]/g, '-')}` : undefined;
-    const rea = useRemoteRea ? new RemoteReaProvider() : new ReaProvider({ manager: browser, debugRoot });
-    const result = await new SearchService([rea, new DomainProvider()], store).search(criteria, { onEvent });
+    const providers = [];
+    if (selected.includes('rea')) providers.push(useRemoteRea ? new RemoteReaProvider() : new ReaProvider({ manager: browser, debugRoot }));
+    if (selected.includes('domain')) providers.push(new DomainProvider());
+    const result = await new SearchService(providers, store).search(criteria, { onEvent });
     store.saveSnapshot(name, result);
     return result;
   } finally { await browser?.close(); store?.close(); }
@@ -49,12 +52,13 @@ const publish = (job, event) => {
   for (const response of job.listeners) { try { sendEvent(response, item); } catch { job.listeners.delete(response); } }
 };
 const finish = (job) => { job.done = true; for (const response of job.listeners) { try { response.end(); } catch {} } job.listeners.clear(); const cleanup = setTimeout(() => jobs.delete(job.id), 10 * 60 * 1000); cleanup.unref?.(); };
-const startJob = (criteria, name, yaml, debug) => {
+const startJob = (criteria, name, yaml, debug, providerMode = 'both') => {
   const job = { id: randomUUID(), events: [], listeners: new Set(), progress: 0, done: false };
-  jobs.set(job.id, job); publish(job, { type: 'queued', progress: 0, message: 'Search queued.' });
+  const providerLabel = providerMode === 'rea' ? 'REA only' : providerMode === 'domain' ? 'Domain only' : 'REA + Domain';
+  jobs.set(job.id, job); publish(job, { type: 'queued', progress: 0, message: `Search queued (${providerLabel}).` });
   void (async () => {
     try {
-      const result = await run(criteria, name, debug, (event) => publish(job, event));
+      const result = await run(criteria, name, debug, (event) => publish(job, event), providerMode);
       publish(job, { type: 'complete', progress: 100, message: 'Search complete.', result: { name, yaml, result } });
     } catch (error) { publish(job, { type: 'error', progress: 100, message: error.message ?? 'Search failed.' }); }
     finally { finish(job); }
@@ -108,7 +112,7 @@ const server = createServer(async (request, response) => {
       await writeFile(definitionPath(name), yaml); return json(response, 200, { name, yaml, form: criteriaToForm(parsed), lastResult: latestResult(name) });
     }
     if (request.method === 'POST' && url.pathname === '/api/search') {
-      const input = await body(request); const name = definitionName(input.name); const criteria = formToCriteria(input.form ?? {}); const yaml = criteriaToYaml(criteria); const parsed = parseCriteriaYaml(yaml); const job = startJob(parsed, name, yaml, Boolean(input.debug));
+      const input = await body(request); const name = definitionName(input.name); const criteria = formToCriteria(input.form ?? {}); const yaml = criteriaToYaml(criteria); const parsed = parseCriteriaYaml(yaml); const requestedProvider = input.provider ?? input.form?.provider; const providerMode = ['rea', 'domain'].includes(requestedProvider) ? requestedProvider : 'both'; const job = startJob(parsed, name, yaml, Boolean(input.debug), providerMode);
       return json(response, 202, { jobId: job.id, name, yaml });
     }
     if (request.method === 'GET') {
