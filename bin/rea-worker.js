@@ -28,6 +28,7 @@ const request = async (path, options = {}) => {
   return data;
 };
 const postEvent = async (jobId, event) => { try { await request(`/api/rea-worker/jobs/${encodeURIComponent(jobId)}/events`, { method: 'POST', body: JSON.stringify(event) }); } catch (error) { console.error(error.message); } };
+const transportListings = (listings) => listings.map(({ raw, ...listing }) => listing);
 const sleep = (milliseconds) => new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
 let stopping = false;
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { stopping = true; });
@@ -45,7 +46,7 @@ while (!stopping) {
       const emit = (event) => { eventQueue = eventQueue.then(() => postEvent(job.jobId, event)); };
       const listings = await provider.search(job.criteria, { onEvent: emit });
       await eventQueue;
-      await request(`/api/rea-worker/jobs/${encodeURIComponent(job.jobId)}/result`, { method: 'POST', body: JSON.stringify({ listings }) });
+      await request(`/api/rea-worker/jobs/${encodeURIComponent(job.jobId)}/result`, { method: 'POST', body: JSON.stringify({ listings: transportListings(listings) }) });
     } catch (error) {
       await request(`/api/rea-worker/jobs/${encodeURIComponent(job.jobId)}/error`, { method: 'POST', body: JSON.stringify({ code: error.code ?? 'UNAVAILABLE', message: error.message }) }).catch((reportError) => console.error(reportError.message));
     }
