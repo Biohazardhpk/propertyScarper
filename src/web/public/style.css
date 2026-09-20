@@ -5,3 +5,4 @@
 .run:disabled{opacity:.7;cursor:wait}
 .results-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.results-heading>label{min-width:150px}.results-heading p{margin:0 0 4px}.results-heading select{margin-top:5px}
 @media(max-width:620px){.results-heading{align-items:stretch;flex-direction:column}.results-heading>label{min-width:0}}
+.yaml-editor{min-height:480px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.45;white-space:pre;tab-size:2}

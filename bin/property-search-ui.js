@@ -108,11 +108,11 @@ const server = createServer(async (request, response) => {
       return json(response, 201, await readConfig(name));
     }
     if (request.method === 'POST' && url.pathname === '/api/yaml') {
-      const input = await body(request); const name = definitionName(input.name); const criteria = formToCriteria(input.form ?? {}); const yaml = criteriaToYaml(criteria); const parsed = parseCriteriaYaml(yaml);
+      const input = await body(request); const name = definitionName(input.name); const rawYaml = typeof input.yaml === 'string' && input.yaml.trim() ? `${input.yaml.trimEnd()}\n` : undefined; const yaml = rawYaml ?? criteriaToYaml(formToCriteria(input.form ?? {})); const parsed = parseCriteriaYaml(yaml);
       await writeFile(definitionPath(name), yaml); return json(response, 200, { name, yaml, form: criteriaToForm(parsed), lastResult: latestResult(name) });
     }
     if (request.method === 'POST' && url.pathname === '/api/search') {
-      const input = await body(request); const name = definitionName(input.name); const criteria = formToCriteria(input.form ?? {}); const yaml = criteriaToYaml(criteria); const parsed = parseCriteriaYaml(yaml); const requestedProvider = input.provider ?? input.form?.provider; const providerMode = ['rea', 'domain'].includes(requestedProvider) ? requestedProvider : 'both'; const job = startJob(parsed, name, yaml, Boolean(input.debug), providerMode);
+      const input = await body(request); const name = definitionName(input.name); const rawYaml = typeof input.yaml === 'string' && input.yaml.trim() ? `${input.yaml.trimEnd()}\n` : undefined; const yaml = rawYaml ?? criteriaToYaml(formToCriteria(input.form ?? {})); const parsed = parseCriteriaYaml(yaml); const requestedProvider = input.provider ?? input.form?.provider; const providerMode = ['rea', 'domain'].includes(requestedProvider) ? requestedProvider : 'both'; const job = startJob(parsed, name, yaml, Boolean(input.debug), providerMode);
       return json(response, 202, { jobId: job.id, name, yaml });
     }
     if (request.method === 'GET') {
