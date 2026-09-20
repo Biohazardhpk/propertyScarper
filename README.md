@@ -57,7 +57,7 @@ Run the lightweight local UI with a criteria file (the example is the default):
 npm run ui -- examples/north-brisbane-under_800k.yaml
 ```
 
-Then open `http://localhost:8080`. The server listens on `0.0.0.0` so Railway and other hosted environments can route to it; `PORT` overrides `8080` when set. The form loads that YAML definition, saves form edits back to the same file, and runs the existing REA and Domain search pipeline. Use the saved-definition menu to browse YAML files in the same folder or create a new one. Each definition has its own SQLite snapshot table, so switching definitions restores its most recently saved search results. The UI supports every documented YAML criterion, including the expanded property-type aliases. Enable **Save REA diagnostics** before a run to save REA page HTML, screenshots and captured JSON responses under `.debug/`. Search errors appear in the page; provider-specific errors still allow results from the other provider.
+Then open `http://localhost:8080`. The server listens on `0.0.0.0` so Railway and other hosted environments can route to it; `PORT` overrides `8080` when set. The form loads that YAML definition, saves form edits back to the same file, and runs the existing REA and Domain search pipeline. During a search, the progress bar and narrow three-line terminal show the current REA, Domain and Apify calls. Use the saved-definition menu to browse YAML files in the same folder or create a new one. Each definition has its own SQLite snapshot table, so switching definitions restores its most recently saved search results. The UI supports every documented YAML criterion, including the expanded property-type aliases. Enable **Save REA diagnostics** before a run to save REA page HTML, screenshots and captured JSON responses under `.debug/`. Search errors appear in the page; provider-specific errors still allow results from the other provider.
 
 ## Railway deployment
 
@@ -65,6 +65,44 @@ The included `Dockerfile` is ready for Railway and installs Google Chrome for th
 
 The volume keeps the SQLite database, persistent Chrome profile, and YAML definitions across deployments. On first start, the application copies the bundled YAML examples into `/data/definitions`; subsequent UI-created definitions and searches stay there.
 If one provider fails, results from the other provider are still returned with a provider warning.
+
+### Run REA through your local Chrome worker
+
+If Railway cannot complete the REA browser request, run the REA browser on your local machine and let Railway handle the UI, Domain search, filtering and storage. The worker polls Railway over HTTPS, so your local machine does not need an inbound port or a public IP.
+
+1. Create one long random token. Put the same token in the Railway service variables and use it when starting the local worker:
+
+```bash
+openssl rand -hex 32
+```
+
+2. Set these variables on Railway:
+
+```dotenv
+PROPERTY_SEARCH_REA_WORKER_URL=https://your-service.up.railway.app
+PROPERTY_SEARCH_REA_WORKER_TOKEN=the-token-from-step-1
+```
+
+3. On your local machine, start the worker with the same URL and token. Keep this process running while using the Railway UI:
+
+```bash
+PROPERTY_SEARCH_REA_WORKER_URL=https://your-service.up.railway.app \
+PROPERTY_SEARCH_REA_WORKER_TOKEN=the-token-from-step-1 \
+PROPERTY_SEARCH_HEADED=1 \
+npm run rea-worker
+```
+
+The worker uses the local Chrome installation and `PROPERTY_SEARCH_PROFILE` profile. The Railway UI will show messages such as `REA: queued local Chrome job`, `REA worker: local Chrome started`, and the REA request URL in its progress log. Do not set `PROPERTY_SEARCH_REA_WORKER_URL` in the environment used by a local UI unless you want that UI to send its REA work to the worker; without it, local UI searches continue to use local Chrome directly.
+
+Worker settings:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PROPERTY_SEARCH_REA_WORKER_URL` | unset | Public HTTPS base URL of the Railway UI service. Enables remote REA execution in the Railway UI. |
+| `PROPERTY_SEARCH_REA_WORKER_TOKEN` | unset | Shared bearer token required by the Railway worker endpoints. |
+| `PROPERTY_SEARCH_REA_WORKER_POLL` | `2000` | Poll interval in milliseconds for worker jobs and status. |
+| `PROPERTY_SEARCH_REA_WORKER_TIMEOUT` | `300000` | Maximum time the Railway UI waits for a local REA job. |
+| `PROPERTY_SEARCH_REA_WORKER_HTTP_TIMEOUT` | `60000` | Local worker HTTP request timeout. |
 
 ## Criteria
 

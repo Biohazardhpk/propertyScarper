@@ -39,20 +39,26 @@ export class ApifyClient {
     return body;
   }
 
-  async run(input) {
+  async run(input, options = {}) {
+    const notify = typeof options.onEvent === 'function' ? options.onEvent : () => {};
+    notify({ type: 'request', message: `APIFY: POST actor ${this.actorId}.` });
     const started = await this.request(`/acts/${encodeURIComponent(this.actorId)}/runs`, { method: 'POST', body: JSON.stringify(input) });
     let run = started?.data;
     if (!run?.id) throw new ProviderUnavailableError('Apify did not return an actor run ID');
+    notify({ type: 'response', message: `APIFY: run ${run.id} started (${run.status}).` });
     const deadline = Date.now() + this.timeoutMs;
     while (!['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'].includes(run.status)) {
       if (Date.now() >= deadline) throw new ProviderTimeoutError(`Apify actor ${this.actorId} did not finish within ${this.timeoutMs}ms`);
       await wait(this.pollMs);
       run = (await this.request(`/actor-runs/${encodeURIComponent(run.id)}`))?.data;
+      notify({ type: 'poll', message: `APIFY: run ${run?.id ?? 'unknown'} status ${run?.status ?? 'unknown'}.` });
     }
     if (run.status !== 'SUCCEEDED') throw new ProviderUnavailableError(`Apify actor ${this.actorId} finished with status ${run.status}`);
     if (!run.defaultDatasetId) return [];
+    notify({ type: 'request', message: `APIFY: GET dataset ${run.defaultDatasetId}.` });
     const items = await this.request(`/datasets/${encodeURIComponent(run.defaultDatasetId)}/items?clean=true&format=json&limit=1000`);
     if (!Array.isArray(items)) throw new ProviderError('Apify dataset returned an unexpected response', 'PARSING');
+    notify({ type: 'response', message: `APIFY: dataset returned ${items.length} items.` });
     return items;
   }
 }
@@ -97,11 +103,15 @@ export class DomainProvider {
     if (listing.sourceUrl) this.listingCache.set(listing.sourceUrl, listing);
   }
 
-  async search(criteria) {
+  async search(criteria, options = {}) {
+    const notify = typeof options.onEvent === 'function' ? options.onEvent : () => {};
     const urls = criteria.locations.map((location) => domainSearchUrl(criteria, location));
-    const items = await this.client.run(this.actorInput(criteria, urls));
+    notify({ type: 'request', message: `DOMAIN: prepared ${urls.length} search URL${urls.length === 1 ? '' : 's'} for Apify.` });
+    urls.forEach((url) => notify({ type: 'request', message: `DOMAIN: ${url}` }));
+    const items = await this.client.run(this.actorInput(criteria, urls), { onEvent: notify });
     const listings = uniqueListings(items.map((item) => this.normalize(item)).filter((item) => item.sourceListingId));
     listings.forEach((listing) => this.remember(listing));
+    notify({ type: 'response', message: `DOMAIN: normalized ${listings.length} listings.` });
     return listings;
   }
 }

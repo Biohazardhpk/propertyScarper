@@ -11,6 +11,7 @@ import { mapDomainListing, parseDomainHtml, parseDomainListingHtml } from '../sr
 import { reaSearchUrl } from '../src/providers/rea/search.js';
 import { domainSearchUrl } from '../src/providers/domain/search.js';
 import { ApifyClient, DomainProvider } from '../src/providers/domain/provider.js';
+import { RemoteReaProvider } from '../src/providers/rea/remote.js';
 import { SQLiteStore } from '../src/persistence/database.js';
 import { SearchService } from '../src/core/search.js';
 import { criteriaToForm, criteriaToYaml, formToCriteria } from '../src/web/criteria-yaml.js';
@@ -228,4 +229,29 @@ test('provider failure is isolated', async () => {
   assert.equal(result.properties.length, 1);
   assert.equal(result.providers[1].error.code, 'TIMEOUT');
   store.close();
+});
+
+test('search emits progress events for the UI', async () => {
+  const path = `/tmp/property-search-progress-${crypto.randomUUID()}.sqlite`;
+  const store = new SQLiteStore(path); const events = [];
+  const provider = { name: 'rea', async search(_criteria, { onEvent }) { onEvent({ type: 'request', message: 'REA: GET fixture' }); return []; } };
+  await new SearchService([provider], store).search({ locations: ['Narangba'], transactionType: 'buy' }, { onEvent: (event) => events.push(event) });
+  assert.deepEqual(events.map((event) => event.type), ['search-start', 'provider-start', 'request', 'provider-complete', 'finalizing', 'search-complete']);
+  assert.equal(events.at(-1).progress, 100);
+  store.close();
+});
+
+test('remote REA provider queues, polls and returns local-worker listings', async () => {
+  const calls = []; const events = [];
+  const fetch = async (url, options = {}) => {
+    calls.push({ url, options });
+    if (url.endsWith('/api/rea-worker/jobs')) return new Response(JSON.stringify({ jobId: 'rea-job-1' }), { status: 202 });
+    return new Response(JSON.stringify({ state: 'SUCCEEDED', events: [{ type: 'worker-start', message: 'local Chrome started' }], listings: [{ source: 'rea', sourceListingId: 'rea-1' }] }), { status: 200 });
+  };
+  const provider = new RemoteReaProvider({ baseUrl: 'https://railway.example', token: 'worker-token', fetch, pollMs: 0 });
+  const listings = await provider.search({ locations: ['Narangba QLD 4504'], transactionType: 'buy' }, { onEvent: (event) => events.push(event) });
+  assert.equal(listings[0].sourceListingId, 'rea-1');
+  assert.equal(events[0].message, 'REA: queued local Chrome job rea-job-1.');
+  assert.equal(events[1].message, 'local Chrome started');
+  assert.match(calls[0].options.headers.Authorization, /^Bearer worker-token$/);
 });
