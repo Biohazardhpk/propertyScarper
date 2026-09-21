@@ -95,6 +95,23 @@ const server = createServer(async (request, response) => {
       return json(response, 404, { error: 'REA worker route not found' });
     }
     if (request.method === 'GET' && url.pathname === '/api/readme') return json(response, 200, { markdown: await readFile(resolve('README.md'), 'utf8') });
+    if (request.method === 'GET' && url.pathname === '/api/interactions') {
+      const name = definitionName(url.searchParams.get('name') ?? undefined); const store = new SQLiteStore(databasePath());
+      try { return json(response, 200, { name, ...store.loadInteractions(name) }); } finally { store.close(); }
+    }
+    if (request.method === 'POST' && url.pathname === '/api/interactions') {
+      const input = await body(request); const name = definitionName(input.name); const store = new SQLiteStore(databasePath());
+      try {
+        if (input.action === 'click') {
+          if (!input.propertyKey || !input.source || !input.sourceUrl) throw new Error('A property link click requires propertyKey, source and sourceUrl');
+          store.recordLinkClick(name, input.propertyKey, input.source, input.sourceListingId, input.sourceUrl);
+        } else if (input.action === 'favorite') {
+          if (!input.propertyKey) throw new Error('A favorite requires propertyKey');
+          store.setFavorite(name, input.propertyKey, input.favorite === true);
+        } else throw new Error('Unknown interaction action');
+        return json(response, 200, { name, ...store.loadInteractions(name) });
+      } finally { store.close(); }
+    }
     if (request.method === 'GET' && url.pathname === '/api/configs') return json(response, 200, { definitions: await listDefinitions(), current: basename(initialCriteriaPath) });
     if (request.method === 'GET' && url.pathname === '/api/config') return json(response, 200, await readConfig(url.searchParams.get('name') ?? undefined));
     if (request.method === 'GET' && url.pathname === '/api/results') {

@@ -26,7 +26,9 @@ export class SQLiteStore {
       CREATE TABLE IF NOT EXISTS search_results(search_id INTEGER NOT NULL, property_key TEXT NOT NULL, score REAL, PRIMARY KEY(search_id,property_key));
       CREATE TABLE IF NOT EXISTS result_listings(search_id INTEGER NOT NULL, property_key TEXT NOT NULL, source TEXT NOT NULL, source_listing_id TEXT NOT NULL, source_url TEXT, price_numeric REAL, PRIMARY KEY(search_id,source,source_listing_id));
       CREATE TABLE IF NOT EXISTS price_history(id INTEGER PRIMARY KEY, source TEXT NOT NULL, source_listing_id TEXT NOT NULL, price_numeric REAL, price_display TEXT, observed_at TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS listing_history(id INTEGER PRIMARY KEY, source TEXT NOT NULL, source_listing_id TEXT NOT NULL, change_type TEXT NOT NULL, old_value_json TEXT, new_value_json TEXT, observed_at TEXT NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS listing_history(id INTEGER PRIMARY KEY, source TEXT NOT NULL, source_listing_id TEXT NOT NULL, change_type TEXT NOT NULL, old_value_json TEXT, new_value_json TEXT, observed_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS property_link_clicks(definition_name TEXT NOT NULL, property_key TEXT NOT NULL, source TEXT NOT NULL, source_listing_id TEXT NOT NULL, source_url TEXT NOT NULL, clicked_at TEXT NOT NULL, click_count INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(definition_name,source,source_listing_id));
+      CREATE TABLE IF NOT EXISTS property_favorites(definition_name TEXT NOT NULL, property_key TEXT NOT NULL, saved_at TEXT NOT NULL, PRIMARY KEY(definition_name,property_key));`);
     this.addColumn('searches', 'criteria_hash', 'TEXT');
     this.addColumn('searches', 'completed_at', 'TEXT');
     this.addColumn('properties', 'property_id', 'TEXT');
@@ -62,6 +64,28 @@ export class SQLiteStore {
     const table = this.snapshotTable(definitionName);
     this.db.exec(`CREATE TABLE IF NOT EXISTS ${table}(id INTEGER PRIMARY KEY, completed_at TEXT NOT NULL, result_json TEXT NOT NULL)`);
     this.db.prepare(`INSERT INTO ${table}(completed_at,result_json) VALUES (?,?)`).run(new Date().toISOString(), JSON.stringify(result));
+  }
+
+  recordLinkClick(definitionName, propertyKey, source, sourceListingId, sourceUrl) {
+    const clickedAt = new Date().toISOString();
+    const listingKey = String(sourceListingId || sourceUrl || propertyKey);
+    this.db.prepare(`INSERT INTO property_link_clicks(definition_name,property_key,source,source_listing_id,source_url,clicked_at,click_count)
+      VALUES (?,?,?,?,?,?,1)
+      ON CONFLICT(definition_name,source,source_listing_id) DO UPDATE SET property_key=excluded.property_key,source_url=excluded.source_url,clicked_at=excluded.clicked_at,click_count=property_link_clicks.click_count+1`).run(String(definitionName), String(propertyKey), String(source), listingKey, String(sourceUrl), clickedAt);
+  }
+
+  setFavorite(definitionName, propertyKey, favorite) {
+    const name = String(definitionName); const key = String(propertyKey);
+    if (favorite) this.db.prepare(`INSERT INTO property_favorites(definition_name,property_key,saved_at) VALUES (?,?,?) ON CONFLICT(definition_name,property_key) DO UPDATE SET saved_at=excluded.saved_at`).run(name, key, new Date().toISOString());
+    else this.db.prepare('DELETE FROM property_favorites WHERE definition_name=? AND property_key=?').run(name, key);
+  }
+
+  loadInteractions(definitionName) {
+    const name = String(definitionName);
+    return {
+      favorites: this.db.prepare('SELECT property_key FROM property_favorites WHERE definition_name=? ORDER BY saved_at DESC').all(name).map((row) => row.property_key),
+      links: this.db.prepare('SELECT source,source_listing_id,clicked_at,click_count FROM property_link_clicks WHERE definition_name=? ORDER BY clicked_at DESC').all(name).map((row) => ({ ...row })),
+    };
   }
 
   loadSnapshot(definitionName, sort = 'newest') {

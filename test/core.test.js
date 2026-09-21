@@ -240,6 +240,22 @@ test('SQLite restores the last usable result when a failed snapshot is present',
   store.close();
 });
 
+test('SQLite persists property link clicks and favorites per definition', () => {
+  const path = `/tmp/property-search-interactions-${crypto.randomUUID()}.sqlite`;
+  const store = new SQLiteStore(path);
+  store.recordLinkClick('north.yaml', 'property-1', 'domain', 'listing-1', 'https://example.test/1');
+  store.recordLinkClick('north.yaml', 'property-1', 'domain', 'listing-1', 'https://example.test/1');
+  store.setFavorite('north.yaml', 'property-1', true);
+  assert.deepEqual(store.loadInteractions('north.yaml'), {
+    favorites: ['property-1'],
+    links: [{ source: 'domain', source_listing_id: 'listing-1', clicked_at: store.loadInteractions('north.yaml').links[0].clicked_at, click_count: 2 }],
+  });
+  store.setFavorite('north.yaml', 'property-1', false);
+  assert.deepEqual(store.loadInteractions('north.yaml').favorites, []);
+  assert.deepEqual(store.loadInteractions('south.yaml').favorites, []);
+  store.close();
+});
+
 test('SQLite sorts saved UI results using database records', () => {
   const path = `/tmp/property-search-sorting-${crypto.randomUUID()}.sqlite`;
   const store = new SQLiteStore(path);
