@@ -230,6 +230,17 @@ test('SQLite keeps latest UI results in a separate table for each YAML definitio
   store.close();
 });
 
+test('SQLite appends repeated snapshots for the same YAML definition', () => {
+  const path = `/tmp/property-search-snapshot-history-${crypto.randomUUID()}.sqlite`;
+  const store = new SQLiteStore(path);
+  store.saveSnapshot('north.yaml', { searchId: 1, properties: [{ propertyId: 'day-1' }] });
+  store.saveSnapshot('north.yaml', { searchId: 2, properties: [{ propertyId: 'day-2' }] });
+  const table = store.snapshotTable('north.yaml');
+  assert.equal(store.db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count, 2);
+  assert.deepEqual(store.loadSnapshot('north.yaml').properties.map((item) => item.propertyId), ['day-2']);
+  store.close();
+});
+
 test('SQLite restores the last usable result when a failed snapshot is present', () => {
   const path = `/tmp/property-search-snapshot-retention-${crypto.randomUUID()}.sqlite`;
   const store = new SQLiteStore(path);
