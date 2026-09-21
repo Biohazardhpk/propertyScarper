@@ -12,6 +12,7 @@ const trackedStatus = (listing) => {
   return status;
 };
 const snapshotSort = (value) => ['newest', 'oldest', 'score'].includes(value) ? value : 'newest';
+const usableSnapshot = (result) => !Array.isArray(result?.providers) || result.providers.length === 0 || result.providers.some((provider) => !provider?.error);
 
 export class SQLiteStore {
   constructor(path) {
@@ -66,7 +67,10 @@ export class SQLiteStore {
   loadSnapshot(definitionName, sort = 'newest') {
     const table = this.snapshotTable(definitionName);
     if (!this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table)) return undefined;
-    const row = this.db.prepare(`SELECT result_json FROM ${table} ORDER BY id DESC LIMIT 1`).get();
+    const snapshotRows = this.db.prepare(`SELECT result_json FROM ${table} ORDER BY id DESC`).all();
+    const row = snapshotRows.find((candidate) => {
+      try { return usableSnapshot(JSON.parse(candidate.result_json)); } catch { return false; }
+    });
     if (!row) return undefined;
     const result = JSON.parse(row.result_json);
     if (!Array.isArray(result.properties) || result.properties.length < 2 || result.searchId == null) return result;

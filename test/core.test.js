@@ -230,6 +230,16 @@ test('SQLite keeps latest UI results in a separate table for each YAML definitio
   store.close();
 });
 
+test('SQLite restores the last usable result when a failed snapshot is present', () => {
+  const path = `/tmp/property-search-snapshot-retention-${crypto.randomUUID()}.sqlite`;
+  const store = new SQLiteStore(path);
+  store.saveSnapshot('north.yaml', { providers: [{ name: 'domain', listingCount: 1 }], properties: [{ propertyId: 'kept' }] });
+  store.saveSnapshot('north.yaml', { providers: [{ name: 'domain', error: { message: 'temporary failure' } }], properties: [] });
+  assert.deepEqual(store.loadSnapshot('north.yaml').properties.map((item) => item.propertyId), ['kept']);
+  assert.equal(store.db.prepare(`SELECT COUNT(*) AS count FROM ${store.snapshotTable('north.yaml')}`).get().count, 2);
+  store.close();
+});
+
 test('SQLite sorts saved UI results using database records', () => {
   const path = `/tmp/property-search-sorting-${crypto.randomUUID()}.sqlite`;
   const store = new SQLiteStore(path);

@@ -25,6 +25,7 @@ const definitionName = (value = basename(initialCriteriaPath)) => { const reques
 const definitionPath = (name) => resolve(definitionsDir, definitionName(name));
 const databasePath = () => process.env.PROPERTY_SEARCH_DB ?? 'data/property-search.sqlite';
 const latestResult = (name, sort = 'newest') => { const store = new SQLiteStore(databasePath()); try { return store.loadSnapshot(name, sort); } finally { store.close(); } };
+const hasSuccessfulProvider = (result) => !Array.isArray(result?.providers) || result.providers.length === 0 || result.providers.some((provider) => !provider?.error);
 async function listDefinitions() { return (await readdir(definitionsDir)).filter((name) => /\.ya?ml$/i.test(name)).sort(); }
 async function readConfig(name) { const safeName = definitionName(name); const yaml = await readFile(definitionPath(safeName), 'utf8'); const parsed = parseCriteriaYaml(yaml); const form = criteriaToForm(parsed); return { name: safeName, yaml, form, lastResult: latestResult(safeName, form.sort) }; }
 async function run(criteria, name, debug = false, onEvent, providerMode = 'both') {
@@ -39,7 +40,7 @@ async function run(criteria, name, debug = false, onEvent, providerMode = 'both'
     if (selected.includes('rea')) providers.push(useRemoteRea ? new RemoteReaProvider() : new ReaProvider({ manager: browser, debugRoot }));
     if (selected.includes('domain')) providers.push(new DomainProvider());
     const result = await new SearchService(providers, store).search(criteria, { onEvent });
-    store.saveSnapshot(name, result);
+    if (hasSuccessfulProvider(result)) store.saveSnapshot(name, result);
     return result;
   } finally { await browser?.close(); store?.close(); }
 }
