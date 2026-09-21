@@ -26,7 +26,7 @@ const definitionPath = (name) => resolve(definitionsDir, definitionName(name));
 const databasePath = () => process.env.PROPERTY_SEARCH_DB ?? 'data/property-search.sqlite';
 const latestResult = (name, sort = 'newest') => { const store = new SQLiteStore(databasePath()); try { return store.loadSnapshot(name, sort); } finally { store.close(); } };
 async function listDefinitions() { return (await readdir(definitionsDir)).filter((name) => /\.ya?ml$/i.test(name)).sort(); }
-async function readConfig(name) { const safeName = definitionName(name); const yaml = await readFile(definitionPath(safeName), 'utf8'); return { name: safeName, yaml, form: criteriaToForm(parseCriteriaYaml(yaml)), lastResult: latestResult(safeName) }; }
+async function readConfig(name) { const safeName = definitionName(name); const yaml = await readFile(definitionPath(safeName), 'utf8'); const parsed = parseCriteriaYaml(yaml); const form = criteriaToForm(parsed); return { name: safeName, yaml, form, lastResult: latestResult(safeName, form.sort) }; }
 async function run(criteria, name, debug = false, onEvent, providerMode = 'both') {
   let browser; let store;
   try {
@@ -109,7 +109,7 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'POST' && url.pathname === '/api/yaml') {
       const input = await body(request); const name = definitionName(input.name); const rawYaml = typeof input.yaml === 'string' && input.yaml.trim() ? `${input.yaml.trimEnd()}\n` : undefined; const yaml = rawYaml ?? criteriaToYaml(formToCriteria(input.form ?? {})); const parsed = parseCriteriaYaml(yaml);
-      await writeFile(definitionPath(name), yaml); return json(response, 200, { name, yaml, form: criteriaToForm(parsed), lastResult: latestResult(name) });
+      await writeFile(definitionPath(name), yaml); return json(response, 200, { name, yaml, form: criteriaToForm(parsed), lastResult: latestResult(name, parsed.sort) });
     }
     if (request.method === 'POST' && url.pathname === '/api/search') {
       const input = await body(request); const name = definitionName(input.name); const rawYaml = typeof input.yaml === 'string' && input.yaml.trim() ? `${input.yaml.trimEnd()}\n` : undefined; const yaml = rawYaml ?? criteriaToYaml(formToCriteria(input.form ?? {})); const parsed = parseCriteriaYaml(yaml); const requestedProvider = input.provider ?? input.form?.provider; const providerMode = ['rea', 'domain'].includes(requestedProvider) ? requestedProvider : 'both'; const job = startJob(parsed, name, yaml, Boolean(input.debug), providerMode);

@@ -175,7 +175,7 @@ The YAML reader supports mappings, indented lists, inline lists, scalar numbers,
 | `exclude_keywords` | list of strings | Optional phrases that remove a listing when found in the title, description or feature text. |
 | `strict_keyword_match` | boolean | If `true`, require at least one `keywords.any` match. Default: `false`. |
 | `exclude_under_contract` | boolean | Remove listings marked under contract, under offer or sold subject to contract. Default: `false`. |
-| `sort.by` | `newest` | Provider request order. `newest` asks providers for newest/date-updated results where supported. |
+| `sort.by` | `newest`, `oldest`, `score` | Saved result display order. `newest` also asks providers for newest/date-updated results where supported. |
 
 ### `locations`
 
@@ -325,24 +325,24 @@ When enabled, listings whose provider status contains `under contract`, `under o
 
 ### `sort`
 
-The YAML `sort.by` value controls the provider request. The supported value is `newest`:
+The YAML `sort.by` value controls the saved result display order. The supported values are `newest`, `oldest` and `score`:
 
 ```yaml
 sort:
   by: newest
 ```
 
-`newest` requests newest/date-updated ordering from the providers where supported. If `sort` is omitted, results use provider order. Values such as `price`, `price_asc`, `price_desc`, `suburb` or `distance` are not implemented and should not be used.
+`newest` requests newest/date-updated ordering from the providers where supported. `oldest` and `score` sort the saved SQLite snapshot after the search. If `sort` is omitted, `newest` is used. Values such as `price`, `price_asc`, `price_desc`, `suburb` or `distance` are not implemented and should not be used.
 
 ### Display sorting
 
-The results panel has a separate **Display order** control. It reads the saved result from SQLite and supports:
+The left form's **Sort** field sets the initial display order. The results panel also has a separate **Display order** control for changing the current view. Both read the saved result from SQLite and support:
 
 - **Newest** — most recently first observed in the database first (`first_seen`).
 - **Oldest** — earliest first observation in the database first (`first_seen`).
 - **Highest score** — highest ranking score first.
 
-Changing display order does not run the providers again or change the YAML definition.
+Changing the results-panel display order does not run the providers again or change the YAML definition. Saving the left form or YAML editor stores the selected initial order in the definition.
 
 ### Minimal and complete files
 
