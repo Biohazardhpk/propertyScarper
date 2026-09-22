@@ -9,7 +9,11 @@ export class RemoteReaProvider {
     this.token = options.token ?? process.env.PROPERTY_SEARCH_REA_WORKER_TOKEN;
     this.fetch = options.fetch ?? globalThis.fetch;
     this.pollMs = Number(options.pollMs ?? process.env.PROPERTY_SEARCH_REA_WORKER_POLL ?? 2000);
-    const timeoutMs = Number(options.timeoutMs ?? process.env.PROPERTY_SEARCH_REA_WORKER_TIMEOUT ?? 0);
+    // A worker search can legitimately take longer than five minutes while Chrome
+    // works through multiple locations/pages. Keep the job alive by default; an
+    // explicit constructor timeout is still available for tests or callers that
+    // need a hard deadline.
+    const timeoutMs = Number(options.timeoutMs ?? 0);
     this.timeoutMs = timeoutMs > 0 ? timeoutMs : Infinity;
   }
 

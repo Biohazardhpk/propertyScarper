@@ -107,12 +107,11 @@ Worker settings:
 | `PROPERTY_SEARCH_REA_WORKER_URL` | unset | Public HTTPS base URL of the Railway UI service. Enables remote REA execution in the Railway UI. |
 | `PROPERTY_SEARCH_REA_WORKER_TOKEN` | unset | Shared bearer token required by the Railway worker endpoints. |
 | `PROPERTY_SEARCH_REA_WORKER_POLL` | `2000` | Poll interval in milliseconds for worker jobs and status. |
-| `PROPERTY_SEARCH_REA_WORKER_TIMEOUT` | `0` | Maximum time the Railway UI waits for a local REA job in milliseconds. `0` means no limit. |
 | `PROPERTY_SEARCH_REA_WORKER_HTTP_TIMEOUT` | `60000` | Local worker HTTP request timeout. |
 | `PROPERTY_SEARCH_REA_WORKER_PROFILE` | `.property-search-profile` | Local Chrome profile path. |
 | `PROPERTY_SEARCH_REA_WORKER_HEADED` | unset | Set to `1` to show local Chrome; headless by default. |
 
-If the UI reports `Local REA worker did not finish within 300000ms`, an old Railway variable is overriding the unlimited default. Delete `PROPERTY_SEARCH_REA_WORKER_TIMEOUT` from Railway or set it to `0`, then redeploy the service.
+The Railway UI does not impose a total time limit on a local REA job. Individual HTTP requests still time out after the configured `PROPERTY_SEARCH_REA_WORKER_HTTP_TIMEOUT`, then polling continues. Remove any old `PROPERTY_SEARCH_REA_WORKER_TIMEOUT` variable from Railway; it is no longer used.
 
 ## Criteria
 
