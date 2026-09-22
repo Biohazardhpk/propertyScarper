@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { parseCriteriaYaml } from '../src/core/criteria.js';
 import { SearchService } from '../src/core/search.js';
@@ -45,7 +45,7 @@ if (command === 'setup') {
     }
     if (selected.includes('domain')) providers.push(new DomainProvider());
     store = new SQLiteStore(process.env.PROPERTY_SEARCH_DB ?? 'data/property-search.sqlite');
-    const result = await new SearchService(providers, store).search(criteria);
+    const result = await new SearchService(providers, store).search(criteria, { definitionName: basename(resolve(argument)) });
     console.log(flags.includes('--json') ? JSON.stringify(result, null, 2) : formatResults(result));
   } catch (error) {
     console.error(`property-search: ${error.stack ?? error.message}`);

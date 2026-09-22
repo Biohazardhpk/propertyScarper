@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, resolve } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { parseCriteriaYaml } from '../src/core/criteria.js';
@@ -39,7 +39,7 @@ async function run(criteria, name, debug = false, onEvent, providerMode = 'both'
     const providers = [];
     if (selected.includes('rea')) providers.push(useRemoteRea ? new RemoteReaProvider() : new ReaProvider({ manager: browser, debugRoot }));
     if (selected.includes('domain')) providers.push(new DomainProvider());
-    const result = await new SearchService(providers, store).search(criteria, { onEvent });
+    const result = await new SearchService(providers, store).search(criteria, { onEvent, definitionName: name });
     if (hasSuccessfulProvider(result)) store.saveSnapshot(name, result);
     return result;
   } finally { await browser?.close(); store?.close(); }
@@ -112,7 +112,7 @@ const server = createServer(async (request, response) => {
         return json(response, 200, { name, ...store.loadInteractions(name) });
       } finally { store.close(); }
     }
-    if (request.method === 'GET' && url.pathname === '/api/configs') return json(response, 200, { definitions: await listDefinitions(), current: basename(initialCriteriaPath) });
+    if (request.method === 'GET' && url.pathname === '/api/configs') { const definitions = await listDefinitions(); return json(response, 200, { definitions, current: definitions.includes(basename(initialCriteriaPath)) ? basename(initialCriteriaPath) : definitions[0] }); }
     if (request.method === 'GET' && url.pathname === '/api/config') return json(response, 200, await readConfig(url.searchParams.get('name') ?? undefined));
     if (request.method === 'GET' && url.pathname === '/api/results') {
       const name = definitionName(url.searchParams.get('name') ?? undefined);
@@ -124,6 +124,16 @@ const server = createServer(async (request, response) => {
       try { await readFile(path); throw new Error('A YAML definition with that name already exists'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
       await writeFile(path, criteriaToYaml({ locations: ['Brisbane QLD 4000'], transactionType: 'buy', sort: 'newest' }));
       return json(response, 201, await readConfig(name));
+    }
+    if (request.method === 'POST' && url.pathname === '/api/configs/delete') {
+      const name = definitionName((await body(request)).name); const definitions = await listDefinitions();
+      if (!definitions.includes(name)) return json(response, 404, { error: 'YAML definition not found' });
+      if (definitions.length <= 1) return json(response, 400, { error: 'Cannot delete the last YAML definition' });
+      const store = new SQLiteStore(databasePath());
+      try { store.deleteDefinition(name); } finally { store.close(); }
+      await unlink(definitionPath(name));
+      const remaining = definitions.filter((candidate) => candidate !== name);
+      return json(response, 200, { deleted: name, next: remaining[0] });
     }
     if (request.method === 'POST' && url.pathname === '/api/yaml') {
       const input = await body(request); const name = definitionName(input.name); const rawYaml = typeof input.yaml === 'string' && input.yaml.trim() ? `${input.yaml.trimEnd()}\n` : undefined; const yaml = rawYaml ?? criteriaToYaml(formToCriteria(input.form ?? {})); const parsed = parseCriteriaYaml(yaml);

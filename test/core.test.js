@@ -267,6 +267,24 @@ test('SQLite persists property link clicks and favorites per definition', () => 
   store.close();
 });
 
+test('SQLite deletes a YAML definition and its associated records', () => {
+  const path = `/tmp/property-search-definition-delete-${crypto.randomUUID()}.sqlite`;
+  const store = new SQLiteStore(path);
+  const property = { propertyId: 'north-1', addressKey: 'north-1', address: { fullAddress: '1 North Street' }, score: 10, listings: [{ source: 'domain', sourceListingId: 'listing-1', sourceUrl: 'https://example.test/1', price: { numeric: 500000, display: '$500,000' } }] };
+  const searchId = store.beginSearch({ locations: ['Narangba'], transactionType: 'buy' }, ['domain'], 'north.yaml');
+  store.persistResults(searchId, [property], { expectedProviders: ['domain'], successfulProviders: ['domain'] });
+  store.saveSnapshot('north.yaml', { searchId, properties: [property], providers: [{ name: 'domain', listingCount: 1 }] });
+  store.recordLinkClick('north.yaml', 'north-1', 'domain', 'listing-1', property.listings[0].sourceUrl);
+  store.setFavorite('north.yaml', 'north-1', true);
+  store.deleteDefinition('north.yaml');
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS count FROM searches WHERE definition_name=?').get('north.yaml').count, 0);
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS count FROM listings').get().count, 0);
+  assert.equal(store.db.prepare('SELECT COUNT(*) AS count FROM properties').get().count, 0);
+  assert.deepEqual(store.loadInteractions('north.yaml'), { favorites: [], links: [] });
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name=?").get(store.snapshotTable('north.yaml')).count, 0);
+  store.close();
+});
+
 test('SQLite sorts saved UI results using database records', () => {
   const path = `/tmp/property-search-sorting-${crypto.randomUUID()}.sqlite`;
   const store = new SQLiteStore(path);

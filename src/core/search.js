@@ -3,7 +3,7 @@ export class SearchService {
   constructor(providers, store) { this.providers = providers; this.store = store; }
   async search(criteria, options = {}) {
     const notify = typeof options.onEvent === 'function' ? options.onEvent : () => {};
-    const expectedProviders = this.providers.map((provider) => provider.name); const searchId = this.store.beginSearch(criteria, expectedProviders);
+    const expectedProviders = this.providers.map((provider) => provider.name); const searchId = this.store.beginSearch(criteria, expectedProviders, options.definitionName);
     notify({ type: 'search-start', progress: 2, message: `Search started for ${criteria.locations.length} location${criteria.locations.length === 1 ? '' : 's'}.` });
     const runs = await Promise.all(this.providers.map(async (provider, index) => {
       const started = Date.now(); const providerStart = 8 + Math.floor(index * (80 / Math.max(1, this.providers.length))); const providerEnd = 8 + Math.floor((index + 1) * (80 / Math.max(1, this.providers.length)));
