@@ -38,8 +38,10 @@ export class SearchService {
         const partialListings = Array.isArray(error.partialListings) ? uniqueListings(error.partialListings) : [];
         this.store.providerRun(searchId, provider.name, 'FAILED', partialListings.length, Date.now() - started, error.message);
         const partialNote = partialListings.length ? ` (${partialListings.length} listings retained from completed pages)` : '';
-        notify({ type: 'provider-error', provider: provider.name, progress: providerEnd, message: `${provider.name.toUpperCase()}: failed — ${error.message}${partialNote}` });
-        return { provider: provider.name, listings: partialListings, error: { code: error.code ?? 'UNAVAILABLE', message: error.message } };
+        const retryNote = Number(error.retryAttempts) > 0 ? ` after ${error.retryAttempts} retries` : '';
+        const failureMessage = `${error.message}${retryNote}${partialNote}`;
+        notify({ type: 'provider-error', provider: provider.name, progress: providerEnd, message: `${provider.name.toUpperCase()}: failed — ${failureMessage}` });
+        return { provider: provider.name, listings: partialListings, error: { code: error.code ?? 'UNAVAILABLE', message: failureMessage } };
       }
     }));
 

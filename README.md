@@ -441,7 +441,7 @@ Matching a minimum exactly does not add bedroom or car-space points. A land rank
 | `PROPERTY_SEARCH_PROFILE` | `.property-search-profile` | REA Chrome profile path |
 | `PROPERTY_SEARCH_TIMEOUT` | `60000` | REA navigation timeout |
 | `PROPERTY_SEARCH_MAX_PAGES` | `10` | Maximum pages per provider |
-| `PROPERTY_SEARCH_REA_RETRIES` | `3` | Retries for an REA page after an HTTP 429 response |
+| `PROPERTY_SEARCH_REA_RETRIES` | `8` (maximum) | Retries for an REA page after an HTTP 429 response; values above 8 are capped |
 | `PROPERTY_SEARCH_REA_RETRY_DELAY` | `5000` | Initial REA retry delay in milliseconds; subsequent retries back off exponentially |
 | `PROPERTY_SEARCH_REA_WORKER_HEADED` | unset | Set to `1` to show REA Chrome |
 | `PROPERTY_SEARCH_USER_AGENT` | Chrome default | Optional REA browser user agent |

@@ -11,8 +11,10 @@ export class ReaProvider {
     this.manager = options.manager ?? new BrowserManager(options);
     this.debugRoot = options.debugRoot;
     this.maxPages = Number(options.maxPages ?? process.env.PROPERTY_SEARCH_MAX_PAGES ?? 10);
-    this.retries = Math.max(0, Number(options.retries ?? process.env.PROPERTY_SEARCH_REA_RETRIES ?? 3));
-    this.retryDelayMs = Math.max(0, Number(options.retryDelayMs ?? process.env.PROPERTY_SEARCH_REA_RETRY_DELAY ?? 5000));
+    const configuredRetries = Number(options.retries ?? process.env.PROPERTY_SEARCH_REA_RETRIES ?? 8);
+    const configuredDelay = Number(options.retryDelayMs ?? process.env.PROPERTY_SEARCH_REA_RETRY_DELAY ?? 5000);
+    this.retries = Number.isFinite(configuredRetries) ? Math.min(8, Math.max(0, Math.floor(configuredRetries))) : 8;
+    this.retryDelayMs = Number.isFinite(configuredDelay) ? Math.max(0, configuredDelay) : 5000;
   }
 
   async fetchPageWithRetry(url, fetchOptions, notify, location, pageNumber) {
@@ -21,7 +23,7 @@ export class ReaProvider {
         return await this.manager.fetchPage(url, fetchOptions);
       } catch (error) {
         const rateLimited = error.code === 'RATE_LIMITED' || /HTTP 429/i.test(error.message ?? '');
-        if (!rateLimited || attempt >= this.retries) throw error;
+        if (!rateLimited || attempt >= this.retries) { if (rateLimited) error.retryAttempts = attempt; throw error; }
         const delay = Math.max(this.retryDelayMs * (2 ** attempt), Number(error.retryAfterMs) || 0);
         notify({ type: 'retry', message: `REA: rate limited; retrying page ${pageNumber} for ${location} in ${Math.ceil(delay / 1000)}s (${attempt + 1}/${this.retries}).` });
         await wait(delay);
