@@ -12,6 +12,8 @@ import { reaSearchUrl } from '../src/providers/rea/search.js';
 import { domainSearchUrl } from '../src/providers/domain/search.js';
 import { ApifyClient, DomainProvider } from '../src/providers/domain/provider.js';
 import { RemoteReaProvider } from '../src/providers/rea/remote.js';
+import { ReaProvider } from '../src/providers/rea/provider.js';
+import { ProviderRateLimitError } from '../src/core/errors.js';
 import { SQLiteStore } from '../src/persistence/database.js';
 import { SearchService } from '../src/core/search.js';
 import { criteriaToForm, criteriaToYaml, formToCriteria } from '../src/web/criteria-yaml.js';
@@ -313,6 +315,50 @@ test('provider failure is isolated', async () => {
   store.close();
 });
 
+test('provider failure retains listings collected before the failure', async () => {
+  const path = `/tmp/property-search-partial-${crypto.randomUUID()}.sqlite`;
+  const store = new SQLiteStore(path);
+  const [rea] = await loadListings();
+  const failure = new Error('page 2 failed');
+  failure.code = 'UNAVAILABLE';
+  failure.partialListings = [rea];
+  const result = await new SearchService([{ name: 'rea', async search() { throw failure; } }], store).search({ locations: ['Narangba'], transactionType: 'buy' });
+  assert.equal(result.providers[0].listingCount, 1);
+  assert.equal(result.properties[0].listings[0].sourceListingId, rea.sourceListingId);
+  store.close();
+});
+
+test('provider-only searches merge with the saved snapshot and retain other sources', async () => {
+  const path = `/tmp/property-search-provider-merge-${crypto.randomUUID()}.sqlite`;
+  const store = new SQLiteStore(path);
+  const [rea, domain] = await loadListings();
+  const criteria = { locations: ['Narangba'], transactionType: 'buy' };
+  const reaListing = { ...rea, sourceListingId: 'rea-merge-1', address: { fullAddress: '1 Rea Street, Narangba QLD 4504' } };
+  const domainListing = { ...domain, sourceListingId: 'domain-merge-1', address: { fullAddress: '2 Domain Street, Narangba QLD 4504' } };
+  const run = async (providers) => new SearchService(providers, store).search(criteria, { definitionName: 'merge.yaml' });
+  const save = (result) => store.saveSnapshot('merge.yaml', result);
+
+  const combined = await run([
+    { name: 'rea', async search() { return [reaListing]; } },
+    { name: 'domain', async search() { return [domainListing]; } },
+  ]);
+  save(combined);
+  assert.deepEqual(new Set(combined.properties.flatMap((property) => property.listings.map((listing) => listing.source))), new Set(['rea', 'domain']));
+
+  const reaOnly = await run([{ name: 'rea', async search() { return [{ ...reaListing, price: { numeric: 650000, display: '$650,000' } }]; } }]);
+  save(reaOnly);
+  const afterReaOnly = reaOnly.properties.flatMap((property) => property.listings).map((listing) => listing.sourceListingId);
+  assert.ok(afterReaOnly.includes('rea-merge-1'));
+  assert.ok(afterReaOnly.includes('domain-merge-1'));
+
+  const failedDomain = await run([{ name: 'domain', async search() { throw new Error('temporary Domain failure'); } }]);
+  save(failedDomain);
+  const afterFailure = failedDomain.properties.flatMap((property) => property.listings).map((listing) => listing.sourceListingId);
+  assert.ok(afterFailure.includes('rea-merge-1'));
+  assert.ok(afterFailure.includes('domain-merge-1'));
+  store.close();
+});
+
 test('search emits progress events for the UI', async () => {
   const path = `/tmp/property-search-progress-${crypto.randomUUID()}.sqlite`;
   const store = new SQLiteStore(path); const events = [];
@@ -337,4 +383,23 @@ test('remote REA provider queues, polls and returns local-worker listings', asyn
   assert.equal(events[0].message, 'REA: queued local Chrome job rea-job-1.');
   assert.equal(events[1].message, 'local Chrome started');
   assert.match(calls[0].options.headers.Authorization, /^Bearer worker-token$/);
+});
+
+test('REA retries a rate-limited page before failing', async () => {
+  let calls = 0;
+  const events = [];
+  const cache = JSON.stringify({ x: { data: JSON.stringify({ buySearch: { results: { exact: { items: [] }, pagination: { maxPageNumberAvailable: 1 } } } }) } });
+  const html = `<html><script>window.ArgonautExchange=${JSON.stringify({ app: { urqlClientCache: cache } })};</script></html>`;
+  const manager = {
+    async fetchPage() {
+      calls += 1;
+      if (calls === 1) throw new ProviderRateLimitError('REA request was rate limited (HTTP 429)');
+      return { html, title: 'ok' };
+    },
+  };
+  const provider = new ReaProvider({ manager, maxPages: 1, retries: 1, retryDelayMs: 0 });
+  const listings = await provider.search({ locations: ['Narangba QLD 4504'], transactionType: 'buy' }, { onEvent: (event) => events.push(event) });
+  assert.deepEqual(listings, []);
+  assert.equal(calls, 2);
+  assert.equal(events.find((event) => event.type === 'retry')?.type, 'retry');
 });

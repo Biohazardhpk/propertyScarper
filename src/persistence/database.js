@@ -170,7 +170,9 @@ export class SQLiteStore {
     const successful = new Set(options.successfulProviders ?? [...expected]);
     const completeCoverage = [...expected].every((name) => successful.has(name));
     const search = this.db.prepare('SELECT criteria_hash FROM searches WHERE id=?').get(searchId);
-    const previousSearch = this.db.prepare('SELECT id FROM searches WHERE criteria_hash=? AND definition_name IS ? AND completed_at IS NOT NULL AND id<? ORDER BY id DESC LIMIT 1').get(search.criteria_hash, search.definition_name ?? null, searchId);
+    const previousSearch = options.previousSearchId != null
+      ? { id: Number(options.previousSearchId) }
+      : this.db.prepare('SELECT id FROM searches WHERE criteria_hash=? AND definition_name IS ? AND completed_at IS NOT NULL AND id<? ORDER BY id DESC LIMIT 1').get(search.criteria_hash, search.definition_name ?? null, searchId);
     const previousId = previousSearch?.id;
     const previousProperties = new Set(previousId ? this.db.prepare('SELECT property_key FROM search_results WHERE search_id=?').all(previousId).map((row) => row.property_key) : []);
     const previousListings = previousId ? this.db.prepare('SELECT * FROM result_listings WHERE search_id=?').all(previousId) : [];

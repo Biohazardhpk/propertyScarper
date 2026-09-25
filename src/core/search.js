@@ -1,22 +1,79 @@
-import { enrichAndFilter } from './filtering.js'; import { deduplicate } from './deduplication.js'; import { rank } from './ranking.js';
+import { enrichAndFilter } from './filtering.js';
+import { deduplicate } from './deduplication.js';
+import { rank } from './ranking.js';
+import { uniqueListings } from '../providers/shared.js';
+
+const knownProviders = ['rea', 'domain'];
+
 export class SearchService {
-  constructor(providers, store) { this.providers = providers; this.store = store; }
+  constructor(providers, store) {
+    this.providers = providers;
+    this.store = store;
+  }
+
   async search(criteria, options = {}) {
     const notify = typeof options.onEvent === 'function' ? options.onEvent : () => {};
-    const expectedProviders = this.providers.map((provider) => provider.name); const searchId = this.store.beginSearch(criteria, expectedProviders, options.definitionName);
+    const selectedProviders = this.providers.map((provider) => provider.name);
+    const snapshotProviders = options.snapshotProviders
+      ?? (options.definitionName ? knownProviders : selectedProviders);
+    const previousSnapshot = options.definitionName
+      ? this.store.loadSnapshot(options.definitionName, 'newest')
+      : undefined;
+    const previousListings = (previousSnapshot?.properties ?? []).flatMap((property) => property.listings ?? []);
+    const selectedSet = new Set(selectedProviders);
+    const searchId = this.store.beginSearch(criteria, snapshotProviders, options.definitionName);
+
     notify({ type: 'search-start', progress: 2, message: `Search started for ${criteria.locations.length} location${criteria.locations.length === 1 ? '' : 's'}.` });
     const runs = await Promise.all(this.providers.map(async (provider, index) => {
-      const started = Date.now(); const providerStart = 8 + Math.floor(index * (80 / Math.max(1, this.providers.length))); const providerEnd = 8 + Math.floor((index + 1) * (80 / Math.max(1, this.providers.length)));
+      const started = Date.now();
+      const providerStart = 8 + Math.floor(index * (80 / Math.max(1, this.providers.length)));
+      const providerEnd = 8 + Math.floor((index + 1) * (80 / Math.max(1, this.providers.length)));
       notify({ type: 'provider-start', provider: provider.name, progress: providerStart, message: `${provider.name.toUpperCase()}: starting.` });
       try {
         const listings = await provider.search(criteria, { onEvent: (event) => notify({ ...event, provider: event.provider ?? provider.name }) });
-        this.store.providerRun(searchId, provider.name, 'OK', listings.length, Date.now() - started); notify({ type: 'provider-complete', provider: provider.name, progress: providerEnd, message: `${provider.name.toUpperCase()}: received ${listings.length} listings.` }); return { provider: provider.name, listings };
+        this.store.providerRun(searchId, provider.name, 'OK', listings.length, Date.now() - started);
+        notify({ type: 'provider-complete', provider: provider.name, progress: providerEnd, message: `${provider.name.toUpperCase()}: received ${listings.length} listings.` });
+        return { provider: provider.name, listings };
+      } catch (error) {
+        const partialListings = Array.isArray(error.partialListings) ? uniqueListings(error.partialListings) : [];
+        this.store.providerRun(searchId, provider.name, 'FAILED', partialListings.length, Date.now() - started, error.message);
+        const partialNote = partialListings.length ? ` (${partialListings.length} listings retained from completed pages)` : '';
+        notify({ type: 'provider-error', provider: provider.name, progress: providerEnd, message: `${provider.name.toUpperCase()}: failed — ${error.message}${partialNote}` });
+        return { provider: provider.name, listings: partialListings, error: { code: error.code ?? 'UNAVAILABLE', message: error.message } };
       }
-      catch (error) { this.store.providerRun(searchId, provider.name, 'FAILED', 0, Date.now() - started, error.message); notify({ type: 'provider-error', provider: provider.name, progress: providerEnd, message: `${provider.name.toUpperCase()}: failed — ${error.message}` }); return { provider: provider.name, listings: [], error: { code: error.code ?? 'UNAVAILABLE', message: error.message } }; }
     }));
+
+    const failedProviders = new Set(runs.filter((run) => run.error).map((run) => run.provider));
+    const retainedListings = previousListings.filter((listing) => !selectedSet.has(listing.source) || failedProviders.has(listing.source));
+    const freshListings = runs.flatMap((run) => run.listings);
+    const listings = enrichAndFilter(uniqueListings([...retainedListings, ...freshListings]), criteria);
+    const properties = rank(deduplicate(listings), criteria);
+    const retainedProviders = new Set(retainedListings.map((listing) => listing.source));
+    const successfulProviders = [
+      ...runs.filter((run) => !run.error).map((run) => run.provider),
+      ...retainedProviders,
+    ];
+    const changes = this.store.persistResults(searchId, properties, {
+      expectedProviders: snapshotProviders,
+      successfulProviders: [...new Set(successfulProviders)],
+      previousSearchId: previousSnapshot?.searchId,
+    });
     notify({ type: 'finalizing', progress: 94, message: 'Combining, filtering and ranking results.' });
-    const listings = enrichAndFilter(runs.flatMap((r) => r.listings), criteria); const properties = rank(deduplicate(listings), criteria); const changes = this.store.persistResults(searchId, properties, { expectedProviders, successfulProviders: runs.filter((r) => !r.error).map((r) => r.provider) });
     notify({ type: 'search-complete', progress: 100, message: `Search complete — ${properties.length} matching properties.` });
-    return { searchId, criteria, providers: runs.map(({ provider, listings, error }) => ({ name: provider, listingCount: listings.length, error })), totalSourceListings: listings.length, properties, changes };
+
+    const providerResults = runs.map(({ provider, listings: providerListings, error }) => ({ name: provider, listingCount: providerListings.length, error }));
+    const reportedProviders = new Set(providerResults.map((provider) => provider.name));
+    const previousProviders = (previousSnapshot?.providers ?? [])
+      .filter((provider) => retainedProviders.has(provider.name) && !reportedProviders.has(provider.name))
+      .map((provider) => ({ ...provider, error: undefined }));
+
+    return {
+      searchId,
+      criteria,
+      providers: [...providerResults, ...previousProviders],
+      totalSourceListings: listings.length,
+      properties,
+      changes,
+    };
   }
 }

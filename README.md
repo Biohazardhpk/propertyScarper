@@ -57,7 +57,7 @@ Run the lightweight local UI with a criteria file (the example is the default):
 npm run ui -- examples/north-brisbane-under_800k.yaml
 ```
 
-Then open `http://localhost:8080`. The server listens on `0.0.0.0` so Railway and other hosted environments can route to it; `PORT` overrides `8080` when set. The form loads that YAML definition, and the YAML editor is read-only until you click **Edit YAML**. Click **Save YAML** to validate and write direct YAML changes; the left form is then repopulated from the saved YAML. Form edits can be written back with **Save form as YAML**. When creating a definition, type the name without an extension (for example, `northside`); `.yaml` is added automatically. The UI lets you run **REA + Domain**, **REA only**, or **Domain only**. During a search, the progress bar and narrow three-line terminal show the current provider and Apify calls. If the browser loses the progress connection, the UI automatically reconnects to the same server-side job with exponential backoff; the search is not cancelled. Previous results stay visible and durable in the definition's SQLite snapshot until a successful replacement completes. If every selected provider fails, the previous saved snapshot is retained. After a repeat search, an **Updates since previous search** panel shows new, removed, price, status, URL, description, relisting and source changes. Click a source link to mark it as opened, or click **Favorite** to save a property for that YAML definition; both states are stored in SQLite and restored when the definition is loaded. Use the saved-definition menu to browse YAML files in the same folder or create a new one. Each definition has its own SQLite snapshot table, so switching definitions restores its most recently saved search results. The UI supports every documented YAML criterion, including the expanded property-type aliases. Enable **Save REA diagnostics** before a run to save REA page HTML, screenshots and captured JSON responses under `.debug/`. Search errors appear in the page; provider-specific errors still allow results from the other provider.
+Then open `http://localhost:8080`. The server listens on `0.0.0.0` so Railway and other hosted environments can route to it; `PORT` overrides `8080` when set. The form loads that YAML definition, and the YAML editor is read-only until you click **Edit YAML**. Click **Save YAML** to validate and write direct YAML changes; the left form is then repopulated from the saved YAML. Form edits can be written back with **Save form as YAML**. When creating a definition, type the name without an extension (for example, `northside`); `.yaml` is added automatically. The UI lets you run **REA + Domain**, **REA only**, or **Domain only**. Provider-only runs merge into the existing saved snapshot: listings from the provider you did not run remain visible, and a failed provider run retains its previous listings. If a provider fails after returning some pages, those completed-page listings are retained as partial results. During a search, the progress bar and narrow three-line terminal show the current provider and Apify calls. If the browser loses the progress connection, the UI automatically reconnects to the same server-side job with exponential backoff; the search is not cancelled. Previous results stay visible and durable in the definition's SQLite snapshot until a successful replacement completes. If every selected provider fails, the previous saved snapshot is retained. After a repeat search, an **Updates since previous search** panel shows new, removed, price, status, URL, description, relisting and source changes. Click a source link to mark it as opened, or click **Favorite** to save a property for that YAML definition; both states are stored in SQLite and restored when the definition is loaded. Use the saved-definition menu to browse YAML files in the same folder or create a new one. Each definition has its own SQLite snapshot table, so switching definitions restores its most recently saved search results. The UI supports every documented YAML criterion, including the expanded property-type aliases. Enable **Save REA diagnostics** before a run to save REA page HTML, screenshots and captured JSON responses under `.debug/`. Search errors appear in the page; provider-specific errors still allow results from the other provider.
 
 The definition picker also includes **Delete YAML**. After confirmation, it removes the YAML file and its snapshots, search records, favorites, and link history. The last remaining definition cannot be deleted.
 
@@ -96,9 +96,19 @@ PROPERTY_SEARCH_REA_WORKER_PROFILE=.property-search-profile \
 npm run rea-worker
 ```
 
-The worker uses the local Chrome installation in headless mode, so search pages do not open visibly. Set `PROPERTY_SEARCH_REA_WORKER_HEADED=1` only when you need to watch Chrome for troubleshooting. The Railway UI will show messages such as `REA: queued local Chrome job`, `REA worker: local Chrome started`, and the REA request URL in its progress log. Do not set `PROPERTY_SEARCH_REA_WORKER_URL` in the environment used by a local UI unless you want that UI to send its REA work to the worker; without it, local UI searches continue to use local Chrome directly.
+The worker uses the local Chrome installation in headless mode by default, so search pages do not open visibly. Set `PROPERTY_SEARCH_REA_WORKER_HEADED=1` to watch Chrome for troubleshooting. If that variable is absent, the worker also honors `PROPERTY_SEARCH_REA_WORKER_HEADED=1`; an explicit `PROPERTY_SEARCH_REA_WORKER_HEADED=0` overrides it. The Railway UI will show messages such as `REA: queued local Chrome job`, `REA worker: local Chrome started`, and the REA request URL in its progress log. Do not set `PROPERTY_SEARCH_REA_WORKER_URL` in the environment used by a local UI unless you want that UI to send its REA work to the worker; without it, local UI searches continue to use local Chrome directly.
 
 Railway's `/data/...` paths are for the Railway service only. If they are present in your local `.env`, the worker automatically uses `.property-search-profile` instead. Set `PROPERTY_SEARCH_REA_WORKER_PROFILE` if you want a different local Chrome profile.
+
+If REA continues returning HTTP 429 after the retry cooldown, stop the current worker and test a separate profile without deleting the existing one:
+
+```bash
+PROPERTY_SEARCH_REA_WORKER_PROFILE=.property-search-profile-fresh \
+PROPERTY_SEARCH_REA_WORKER_HEADED=0 \
+npm run rea-worker
+```
+
+Run only one worker at a time. A persistent profile's `LOCK` file is normal while that worker is running.
 
 Worker settings:
 
@@ -431,7 +441,9 @@ Matching a minimum exactly does not add bedroom or car-space points. A land rank
 | `PROPERTY_SEARCH_PROFILE` | `.property-search-profile` | REA Chrome profile path |
 | `PROPERTY_SEARCH_TIMEOUT` | `60000` | REA navigation timeout |
 | `PROPERTY_SEARCH_MAX_PAGES` | `10` | Maximum pages per provider |
-| `PROPERTY_SEARCH_HEADED` | unset | Set to `1` to show REA Chrome |
+| `PROPERTY_SEARCH_REA_RETRIES` | `3` | Retries for an REA page after an HTTP 429 response |
+| `PROPERTY_SEARCH_REA_RETRY_DELAY` | `5000` | Initial REA retry delay in milliseconds; subsequent retries back off exponentially |
+| `PROPERTY_SEARCH_REA_WORKER_HEADED` | unset | Set to `1` to show REA Chrome |
 | `PROPERTY_SEARCH_USER_AGENT` | Chrome default | Optional REA browser user agent |
 
 ## History
